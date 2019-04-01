@@ -1,0 +1,143 @@
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine MCalSaveHGMOrg()  
+   double precision, allocatable :: H0GM(:,:), H0GMall(:,:,:) 
+   
+   integer(KIND=MPI_OFFSET_KIND) :: pos,gSize
+   integer :: i, total, mystart, myend, mylen
+   integer :: ierr
+   double precision :: wtp1, wtp2, wtp3
+
+   if (myid==rootID) then
+       print *, 'mja32.hgm is used!'
+       print *
+   end if
+
+   total = rNum;  ! ndvr(1)*ndvr(2)
+   call getMPI1DIndex(total, nProc, myid, mystart, myend, mylen)
+   print *,'id=',myid, ' range of index:',mystart, myend
+
+   allocate(h0gm(jkNum,jkNum), h0gmall(mylen,jkNum,jkNum), stat=ierr)
+   if (ierr/=0) then
+       print *, ' Error in allocating memory in MCalSaveHgmOrg at id=',myid
+       return
+   endif
+
+   wtp1 = MPI_WTime()
+
+   do i = mystart, myend
+        call calHGMi(rIndex(1,i), rIndex(2,i), H0GM)
+        H0GMAll((i-mystart+1),1:jkNum,1:jkNum) = H0GM(1:jkNum,1:jkNum)
+   end do
+
+   wtp2 = MPI_WTime()
+
+   if (myid==rootID) then
+       print *
+       print *, ' MPI Time to calculate H0GM:',wtp2-wtp1
+   end if
+
+   pos=mystart; gSize=rNum
+   call PMSaveDataGrid(myID, rootID, nproc, MPI_COMM_WORLD, fH0Gm, pos, gSize, mylen, jkNum, H0GmAll, ierr)
+
+   wtp3 = MPI_WTime()
+
+   if (myid==rootID) then
+       print *, ' MPI Time to store H0GM:    ',wtp3-wtp2
+       print *
+   end if
+
+   deallocate(H0GM,H0GmAll)
+
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine MCalSaveHGMSeq()
+   double precision, allocatable :: H0GM(:)
+
+   integer(KIND=MPI_OFFSET_KIND) :: offset
+   integer :: i, total, mystart, myend, mylen
+   integer :: fh, ind(2), info
+
+   allocate(h0gm(jkNum*jkNum), stat=info)
+   if (info/=0) then
+       print *, ' Error in allocating memory in MCalSaveHgmSeq at id=',myid
+       return
+   endif
+
+   total =rNum;    ! ndvr(1)*ndvr(2)
+   call getMPI1DIndex(total, nProc, myid, mystart, myend, mylen)
+   print *,'id=',myid, ' range of index:',mystart, myend
+ 
+   call MPI_File_Open(MPI_COMM_WORLD,fH0Gm,MPI_MODE_WRONLY+MPI_MODE_CREATE,&
+                      MPI_INFO_NULL, fh, ierr)
+
+   do i = mystart, myend
+        call calHGMi(rIndex(1,i), rIndex(2,i), H0GM)
+        offset = (i-1)*dbSize*jkNum**2
+        call MPI_File_Write_At(fh,offset,H0GM,jkNum**2,MPI_DOUBLE_PRECISION,   &
+                       MPI_STATUS_IGNORE,ierr)
+   end do
+
+   call MPI_File_Close(fh, ierr)
+
+   deallocate(H0GM)
+
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine MCalSaveHGMRe()  
+   double precision,allocatable :: H0GM(:,:), H0GmC(:,:),H0GmCAll(:,:,:) 
+   
+   integer(KIND=MPI_OFFSET_KIND) :: pos,gSize
+   integer :: i, total, mystart, myend, mylen, ierr
+   double precision :: wtp1, wtp2, wtp3
+
+   if (myid==rootID) then
+       print *, 'mja32.hgm is used in compact mode!'
+       print *
+   end if
+
+   total = rNum;   !ndvr(1)*ndvr(2)
+   call getMPI1DIndex(total, nproc, myid, mystart, myend, mylen)
+   print *,'id=',myid, ' range of index:',mystart, myend 
+
+   allocate(h0gm(jkNum,jkNum), H0GMC(nDVR(3),nDVR(3)), H0GmCAll(mylen,   &
+            nDVR(3), nDVR(3)), stat=ierr)
+   if (ierr/=0) then
+       print *, ' Error in allocating memory in MCalSaveHgmRe at id=',myid
+       return
+   endif
+
+   wtp1 = MPI_WTime()
+
+   do i = mystart, myend
+        call calHGMi(rIndex(1,i), rIndex(2,i), H0GM)
+        call VTHV(jkNum, ndvr(3), h0GM, REvmat, H0GMC)
+        H0GMcAll((i-mystart+1),1:ndvr(3),1:ndvr(3)) = H0GMc(1:ndvr(3),1:ndvr(3))
+   end do
+
+   wtp2 = MPI_WTime()
+
+   if (myid==rootID) then
+       print *
+       print *, ' MPI Time to calculate H0GM:',wtp2-wtp1
+   end if
+
+   pos=mystart; gSize=rNum
+   call PMSaveDataGrid(MPI_COMM_WORLD, fH0gm, pos, gSize, mylen, ndvr(3), H0GmCAll, ierr)
+   !print *, 'data at id=',myid,':',H0GmCAll
+
+   wtp3 = MPI_WTime()
+
+   if (myid==rootID) then
+       print *, ' MPI Time to store H0GM:    ',wtp3-wtp2
+       print *
+   end if
+
+   deallocate(H0GM, H0GMC,H0GmCAll)
+
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

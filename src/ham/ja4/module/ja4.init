@@ -1,0 +1,180 @@
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function allocJA4()
+   integer :: i, j, k0, m0, lnNum
+   integer :: info, getPjmSize
+   double precision :: dpi, cgComp, mylnn(jmax(1)+jmax(2)+jmax(3)+2)
+
+   allocJA4 = .FALSE.
+
+   fixR1=((FcFlag==FCALL).OR.(FcFlag==FCR1).OR.(FcFlag==FCBRR1).OR.(FcFlag==FCR1R2))
+   fixR2=((FcFlag==FCALL).OR.(FcFlag==FCR2).OR.(FcFlag==FCBRR2).OR.(FcFlag==FCR1R2))
+   fixBR=((FcFlag==FCALL).OR.(FcFlag==FCBR).OR.(FcFlag==FCBRR1).OR.(FcFlag==FCBRR2))
+
+   if (fixR1) NDVR(1)=1
+   if (fixR2) NDVR(2)=1
+   if (fixBR) NDVR(3)=1
+         
+   !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   !c                   allocate memory for DVR                       c
+   !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   allocate(lr1(NDVR(1)),vlr1(NDVR(1)),momlr1(NDVR(1)),Elr1(NDVR(1)), &
+            lr2(NDVR(2)),vlr2(NDVR(2)),momlr2(NDVR(2)),Elr2(NDVR(2)), &
+            BR(NDVR(3)), vBR(NDVR(3)), momBR(NDVR(3)), EBr(NDVR(3)),  &
+            Hlr1(NDVR(1),NDVR(1)), Hlr2(NDVR(2),NDVR(2)),             &
+            HBR(NDVR(3), NDVR(3)), stat=info)
+   if (info /= 0) return
+
+   !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc 
+   !c   allocate memory for Gauss-Legendre/Chebeshev integration     c
+   !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   allocate(wth1(NGI(1)), xth1(NGI(1)), cth1(NGI(1)), sth1(NGI(1)),  &
+            wth2(NGI(2)), xth2(NGI(2)), cth2(NGI(2)), sth2(NGI(2)),  &
+            xphi(NGI(3)), cphi(NGI(3)), sphi(NGI(3)), stat=info)
+   if (info /= 0) return
+
+   !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   !c    weights and nodes for Gauss-Legendre integration       c
+   !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   call YjNodes(NGI(1), cth1, wth1)
+   xth1(1:NGI(1))=ACOS(cth1(1:NGI(1)))
+   sth1(1:NGI(1))= SIN(xth1(1:NGI(1)))
+
+   call YjNodes(NGI(2), cth2, wth2)
+   xth2(1:NGI(2))=ACOS(cth2(1:NGI(2)))
+   sth2(1:NGI(2))= SIN(xth2(1:NGI(2)))
+
+   dpi = PI/NGI(3)
+   do i = 1, NGI(3)
+      xphi(i) = (i-0.5D0)*dpi   !(i-1/2)*pi/N
+   end do   
+   cphi(1:NGI(3)) = cos(xphi(1:NGI(3)))   ! cos((i-1/2)*pi/N)
+   sphi(1:NGI(3)) = sin(xphi(1:NGI(3)))
+
+   !ccccccccccccccccccccccccccccccccccccccccccccccc
+   !c         Tm chebeshev polynomials            c
+   !ccccccccccccccccccccccccccccccccccccccccccccccc
+   mMax = jmax(1) + jmax(1) + 1   ! 2j1max+1
+   allocate(Vmm(NGI(1), NGI(2), mMax), Tm(NGI(3), mMax), stat=info)
+   if (info /= 0) return     
+   
+   call ChevPolys(NGI(3), mMax-1, cphi, Tm)
+
+   !ccccccccccccccccccccccccccccccccccccccccccccccc
+   !c             CG coefficient                  c
+   !ccccccccccccccccccccccccccccccccccccccccccccccc
+   call get4Size(parity,JTol,jmax(1),jmax(2),jmax(3),jkNum,mmNum)
+   allocate(jkInd(4,jkNum), jkSize(jkNum), jkBase(jkNum),             &
+            kmInd(mmNum), cgCoeff(mmNum), stat=info)
+   if (info /= 0) return
+   call get4Index(parity, JTol, jmax(1), jmax(2), jmax(3), jkNum,     &
+                  jkInd, jkSize, mmNum, kmInd)
+   jkBase(1)=1
+   do i = 1, jkNum-1
+      jkBase(i+1)=jkBase(i)+jkSize(i)
+   end do
+         
+   lnNum = jmax(1)+jmax(2)+jmax(3)+2
+   call lnFn(lnNum, myLnn)
+       
+   info = 1
+   do i = 1, jkNum
+      k0 = jkInd(4,i)
+      do j = 1, jkSize(i)
+         m0 = kmInd(info)
+         cgCoeff(info) = CGComp(jkInd(1,i),m0,jkInd(2,i),(k0-m0),    &
+                              jkInd(3,i),k0, myLnn)
+         info = info + 1
+      end do
+   end do
+
+   !ccccccccccccccccccccccccccccccccccccccccccccccc
+   !c    set Associated Legendre Polynomials      c
+   !ccccccccccccccccccccccccccccccccccccccccccccccc
+   p1NMax = getPjmSize(JMax(1)); p2NMax = getPjmSize(JMax(2))      
+   allocate(pjm1(NGI(1), p1NMax), wpj1(NGI(1), p1NMax),              &
+            pjm2(NGI(2), p2NMax), wpj2(NGI(2), p2NMax), stat=info)
+   if (info /= 0) return
+         
+   call AllYjmPolys(NGI(1),JMax(1),cth1,pjm1)
+   call AllYjmPolys(NGI(2),JMax(2),cth2,pjm2) 
+         
+   do i=1, p1NMax
+      wpj1(1:NGI(1),i) = wth1(1:NGI(1))*pjm1(1:NGI(1), i)
+   end do
+
+   do i=1, p2NMax
+      wpj2(1:NGI(2),i) = wth2(1:NGI(2))*pjm2(1:NGI(2), i)
+   end do
+
+   allocJA4 = .TRUE.
+
+end function
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine deallocJA4()
+
+   if (allocated(lr1))    deallocate(lr1)
+   if (allocated(vlr1))   deallocate(vlr1)
+   if (allocated(Hlr1))   deallocate(Hlr1)
+   if (allocated(momlr1)) deallocate(momlr1)
+   if (allocated(Elr1))   deallocate(Elr1)
+
+   if (allocated(lr2))    deallocate(lr2)
+   if (allocated(vlr2))   deallocate(vlr2)
+   if (allocated(Hlr2))   deallocate(Hlr2)
+   if (allocated(momlr2)) deallocate(momlr2)
+   if (allocated(Elr2))   deallocate(Elr2)
+
+   if (allocated(BR))     deallocate(BR) 
+   if (allocated(vBR))    deallocate(vBR)
+   if (allocated(HBR))    deallocate(HBR) 
+   if (allocated(momBR))  deallocate(momBR)
+   if (allocated(EBr))    deallocate(EBr)
+
+   if (allocated(wth1))   deallocate(wth1)
+   if (allocated(wth2))   deallocate(wth2)
+
+   if (allocated(xth1))   deallocate(xth1)
+   if (allocated(xth2))   deallocate(xth2)
+   if (allocated(xphi))   deallocate(xphi)
+
+   if (allocated(cth1))   deallocate(cth1)
+   if (allocated(cth2))   deallocate(cth2)
+   if (allocated(cphi))   deallocate(cphi)
+       
+   if (allocated(sth1))   deallocate(sth1)
+   if (allocated(sth2))   deallocate(sth2)
+   if (allocated(sphi))   deallocate(sphi)
+
+   if (allocated(vmm))    deallocate(vmm)
+   if (allocated(Tm))     deallocate(Tm)
+
+   if (allocated(jkInd))  deallocate(jkInd)
+   if (allocated(jkSize)) deallocate(jkSize) 
+   if (allocated(jkBase)) deallocate(jkBase)
+   if (allocated(kmInd))  deallocate(kmInd)
+   if (allocated(cgCoeff))  deallocate(cgCoeff)    
+
+   if (allocated(rIndex))  deallocate(rIndex)  
+
+   if (allocated(pjm1))   deallocate(pjm1)
+   if (allocated(pjm2))   deallocate(pjm2)
+   if (allocated(wpj1))   deallocate(wpj1)
+   if (allocated(wpj2))   deallocate(wpj2)
+
+     !cccccccc   Splining   cccccccccccccccccccc
+   if (allocated(splr1))  deallocate(splr1)
+   if (allocated(spVlr1)) deallocate(spVlr1)
+   if (allocated(spMlr1)) deallocate(spMlr1)
+
+   if (allocated(splr2))  deallocate(splr2)
+   if (allocated(spVlr2)) deallocate(spVlr2)
+   if (allocated(spMlr2)) deallocate(spMlr2)
+
+   if (allocated(spBR))   deallocate(spBr)
+   if (allocated(spVBr))  deallocate(spVBr)
+   if (allocated(spMBr))  deallocate(spMBr)
+
+ end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccc

@@ -1,0 +1,58 @@
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c  Data used to calculate wavefunction of tri-atomic molecules   c
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c         The data for all three schema                          c
+!c   XY: rho:[0,infinity), x0:[-1.0,1.0], y0:[-1.0,1.0]           c
+!c   HS: rho:[0,infinity), theta:[0,pi/2],chi:[0.2*pi]            c
+!c   JB: lr:[0,infinity),BR:[0,infinity),theta:[0, pi]/[-1,1]     c 
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   integer, parameter :: MAXNS=20
+   integer, parameter :: MAXFILELEN=128
+   integer, parameter :: SEG=1000
+
+   double precision, parameter :: FACTOR = 1.0D4
+   double precision, parameter :: PI=3.1415926535897932D0
+
+   double precision, parameter :: Theta0(2)=(/0.0D0, PI/)
+   double precision, parameter :: PHI0(2)=(/0.0D0,0.5D0*PI/)
+   double precision, parameter :: Chi0(2)=(/0.0D0, 2.0D0*PI/)
+   double precision, parameter :: XYR0(2)=(/-1.0D0, 1.0D0/)
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   integer :: JTol, jmax
+   logical :: parity
+   double precision :: MASS(3)   ! Mass for A, B, C 
+
+!ccccccccccccc   Parameters for original functions  ccccccccccccc 
+   integer :: NMAX(3)   ! # of original basis for lr, BR, Phi
+   integer :: NS(3)     ! # of contracted basis for lr, BR, Phi
+   character(len=MAXFILELEN) :: fVlr, fVBR, fVTh, fVP
+
+   logical :: sType     ! save format: .F.: ASCII format, .T.: Binary format
+   logical :: gType 	! grid/wave function types: 
+                        !    .TRUE.: (rho,x0,y0)/(BR,lr,cos(phi))
+                        !    .FALSE.: (rho,theta,phi)/(BR,lr, phi)
+   integer :: kNum   !gType=.T.:[-2/calWFP1, -1(default)/calWFS1, 0~mMax/calWFM1(kNum)]
+                     !gType=.F.:[-2/calWFP2, -1(default)/calWFS2, 0~mMax/calWFM2(kNum)]
+
+!ccccccccccccc   Parameters for final wave function  ccccccccccccc 
+   integer :: NR(3)            ! # of points for grid
+   double precision :: RanMin(3), RanMax(3)  ! range of parameters
+   integer :: NState           ! number of interesting states
+   integer :: NSInd(MAXNS)     ! indices of intetersted states
+   character(len=MAXFILELEN) :: fOut    ! store the final results
+
+        ! intermediate data
+   integer :: Ntotal, p1NMax, Mmax
+   double precision :: BRMin, BRMax, lrMin, lrMax
+
+   double precision, allocatable :: VBR(:,:),  Vlr(:,:),  VTh(:,:), VP(:,:)
+   double precision, allocatable :: V0(:,:,:), V1(:,:,:), V2(:,:,:)
+   double precision, allocatable :: myR1(:), myR2(:), myR3(:) 
+   integer, allocatable :: jIndex(:), kIndex(:), jkInd(:)
+
+        ! final wave function
+   double precision, allocatable :: P0(:,:,:,:)
+   
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

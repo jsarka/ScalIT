@@ -1,0 +1,70 @@
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c                 Calculate H0 elements                             c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!*********************************************************************
+logical function calHlr()
+    integer, parameter :: ind = 1
+    external :: fitVlr
+    
+!    print *, 'file_lr:',fVRlr
+!    print *,nDVR(ind),useSP
+    if (fixLR) then
+       calHlr=.true.; Hlr(1,1)=0.0D0;
+       lr(1)=Re(ind); vlr(1)=0.0D0; Elr(1)=0.0D0
+       momlr(1) = 0.50D0/(mass(ind)*Re(ind)*Re(ind))  
+    else
+       if (useSP) then
+           calHlr=calH0(fVRlr,nDVR(ind),mass(ind),calVlr,lr,vlr, &
+                        momlr, Elr, hlr)
+       else
+           calHlr=calH0(fVRlr,nDVR(ind),mass(ind),fitVlr,lr,vlr, &
+                        momlr, Elr, hlr)
+       end if
+    end if
+
+end function
+!********************************************************************
+
+!********************************************************************
+logical function calHBR()
+    integer, parameter :: ind = 2
+    external :: fitVBR
+
+    if (fixBR) then
+       calHBR=.true.; HBR(1,1)=0.0D0;
+       BR(1)=Re(ind); vBR(1)=0.0D0; EBR(1)=0.0D0
+       momBR(1) = 0.50D0/(mass(ind)*Re(ind)*Re(ind))  
+    else
+       if (useSP) then
+          calHBR=calH0(fVRBR,nDVR(ind),mass(ind),calVBR,BR,vBR, &
+                        momBR, EBR, hBR)
+       else
+          calHBR=calH0(fVRBR,nDVR(ind),mass(ind),fitVBR,BR,vBR, &
+                        momBR, EBR, hBR)
+       end if
+    end if
+
+end function
+!*******************************************************************
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function calH0(fileName, N, ma, fitV, R0, VR0, mR0, ER0, HR0)
+    character(len=*), intent(IN) :: filename
+    integer, intent(IN)          :: N
+    double precision,intent(IN)  :: ma
+    external :: fitV
+    double precision,intent(OUT) :: R0(N),VR0(N),mR0(N),ER0(N),HR0(N,N)
+
+    logical :: getDVRRF_Sinc2
+
+!    print *, 'File:', filename, N
+    if ( getDVRRF_Sinc2(N, R0, ER0, HR0, filename)) then
+        call fitV(N,R0,VR0)
+        mR0(1:N) = 0.50D0/(ma*R0(1:N)*R0(1:N))
+        calH0 = .true.
+    else
+        calH0 = .false.
+    end if
+
+end function
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

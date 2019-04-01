@@ -1,0 +1,214 @@
+!*****************************************************************
+!*              interfaces to calculate Hgm matrix               *
+!*****************************************************************
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+! TVG This routine converts int indices I1, I2 to corresponding R and r values
+! of position, momentum (assumedly), and potential
+subroutine calHgmI(I1, I2, hgm)
+   integer, intent(IN) :: I1, I2
+   double precision, intent(OUT) :: hgm(jkNum,jkNum)
+
+   call myHGM(BR(i2),lr(i1),momBR(I2),momlr(i1),vBR(I2),vlr(i1),hgm)
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calHgmICon(mNum, vmat, I1, I2, hgm)
+   integer, intent(IN) :: mNum, I1, I2
+   double precision, intent(IN)  :: vmat(jkNum, mNum)
+   double precision, intent(OUT) :: hgm(mNum, mNum)
+
+   double precision, allocatable :: hgm1(:,:)
+   integer :: info
+
+   allocate(hgm1(jkNum,jkNum), stat=info)
+   if (info/=0) then
+       print *, ' Error in allocating memory in calHgmICon!'
+       return
+   endif
+
+   call myHGM(BR(i2),lr(i1),momBR(I2),momlr(i1),vBR(I2),vlr(i1),hgm1)
+
+   call VTHV(jkNum, mNum, hgm1, vmat, hgm)
+
+   deallocate(hgm1)
+
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!******************************************************************
+subroutine getAllHgm(hgm)
+   !double precision, intent(OUT) :: hgm(NDVR(1),NDVR(2),jKNum,jkNum)
+   double precision, intent(OUT) :: hgm(rNum,jKNum,jkNum)
+
+   integer :: I, J, info, kk
+   double precision, allocatable :: hgm1(:,:)
+
+   double precision :: hgm2(rNum,jkNum,jkNum)
+   integer :: i1, i2, i3, count, ir, jr, ii, k
+   integer :: ind1, ind2, getPjmPos
+   double precision :: br0,lr0,mBR,mlr,pBR,plr
+   double precision ::  pesGM0(NGI(1)), tmp, potJA3
+
+   allocate(hgm1(jkNum,jkNum), stat=info)
+   if (info/=0) then
+       print *, ' Error in allocating memory in getAllHgm!'
+       return
+   endif
+
+   do kk = 1, rNum
+      i = rIndex(2,kk); j=rIndex(1,kk)
+      call myHGM(BR(i),lr(J),momBR(I),momlr(J),vBR(I),vlr(J),hgm1)
+      hgm(kk, 1:jkNum, 1:jkNum) = hgm1(1:jkNum, 1:jkNum)
+   end do
+
+!   DO I = 1, NDVR(2)
+!     DO J = 1, NDVR(1)
+!        call myHGM(BR(i),lr(J),momBR(I),momlr(J),vBR(I),vlr(J),hgm1)
+!        hgm(J, I, 1:jkNum, 1:jkNum) = hgm1(1:jkNum, 1:jkNum)
+!     END DO
+!   END DO
+
+    ! TVG: Flatten iteration space, check results against known-good
+    print *, "Beginning check of flattened code. ngi(1) is", NGI(1)
+    hgm2(1:rNum,1:jkNum,1:jkNum) = 0
+    
+    ! init dimension counters
+    i1 = 1
+    i2 = 1
+    i3 = 1
+    count = 1
+    
+    do while (i3 <= jkNum)
+        ir = rIndex(2, i1)
+        jr = rIndex(1, i1)
+
+        br0 = BR(ir)
+        lr0 = lr(jr)
+        mBR = momBR(ir)
+        mlr = momlr(jr)
+        pBR = vBR(ir)
+        plr = vlr(jr)
+
+        ! if we are in the lower triangle compute the values
+        if (i3 <= i2) then        
+            j = jIndex(i2)
+            k = kIndex(i2)       
+            if (j == jIndex(i3) ) then
+                if (k == kIndex(i3)) then
+                    hgm2(i1, i2, i3)= j*(j+1)*mlr+(JTOL*(JTOL+1)+j*(j+1)-2*K*K)*mBR-pbr-plr
+                else
+                    if ((k+1) == kIndex(i3)) then
+                        hgm2(i1, i2, i3)=-DSQRT((JTOL*(JTOL+1.0D0)-K*(K+1.0D0))  &
+                                         *(j*(j+1.0D0)-K*(K+1.0D0)))* mBR
+                        if (k==0) hgm2(i1, i2, i3) = SQRT2*hgm2(i1, i2, i3)
+                    else
+                      if ((k-1) == kIndex(i3)) then
+                         hgm2(i1, i2, i3)=-DSQRT((JTOL*(JTOL+1.0D0)-K*(K-1.0D0)) &
+                                          *(j*(j+1.0D0)-K*(K-1.0D0)))*mBR
+                         if (k==1) hgm2(i1, i2, i3) = SQRT2*hgm2(i1, i2, i3)
+                      end if
+                   end if
+                end if
+            end if
+            
+            do II = 1, NGI(1)
+                pesGM0(ii) = potJA3(BR0, lr0, xth(ii))
+            end do
+            
+            if (k == kIndex(i3)) then                
+                ind1 = getPjmPos(Jmax(1), jIndex(i2), k)
+                ind2 = getPjmPos(Jmax(1), jIndex(i3), k)
+                tmp = sum(wth(1:NGI(1))*pjm1(1:NGI(1),ind1)*     &
+                         pjm1(1:NGI(1),ind2)*pesGM0(1:NGI(1)))
+                hgm2(i1, i2, i3)=hgm2(i1, i2, i3)+tmp
+            end if
+            
+        else
+            ! not in lower triangle, copy
+            hgm2(i1, i2, i3) = hgm2(i1, i3, i2)
+        end if
+        
+        ! Check value
+        print *,dabs(hgm(i1, i2, i3)-hgm2(i1, i2, i3))
+        
+        ! increment to next set of indices
+        i1 = i1 + 1
+        if (i1 > rNum) then
+            i1 = 1
+            i2 = i2 + 1
+        end if
+        if (i2 > jkNum) then
+            i2 = 1
+            i3 = i3 + 1
+        end if
+        count = count + 1
+    end do
+
+   deallocate(hgm1)
+
+end subroutine
+!******************************************************************
+
+!******************************************************************
+subroutine getAllHgmRe(mNum, vmat, hgm)
+   integer, intent(IN) :: mNum
+   double precision, intent(IN)  :: vmat(jknum,mNum)
+   double precision, intent(OUT) :: hgm(rNum,mNum,mNum)
+   !double precision, intent(OUT) :: hgm(NDVR(1),NDVR(2),mNum,mNum)
+
+   integer :: i, j, kk, info
+   double precision,allocatable :: hgm1(:,:), hgm0(:,:)
+
+   allocate(hgm1(jkNum,jkNum), hgm0(mNum,mNum), stat=info)
+   if (info/=0) then
+       print *, ' Error in allocating memory in getAllHgmRe!'
+       return
+   endif  
+
+   do kk = 1, rNum
+      i = rIndex(2,kk); j = rIndex(1,kk)
+      call myHGM(BR(i),lr(J),momBR(I),momlr(J),vBR(I),vlr(J),hgm1)
+      call VTHV(jkNum, mNum, hgm1, vmat, hgm0)
+      hgm(kk, 1:mNum, 1:mNum) = hgm0(1:mNum, 1:mNum)
+   end do
+
+!   DO I = 1, NDVR(2)
+!      DO J = 1, NDVR(1)
+!         call myHGM(BR(i),lr(J),momBR(I),momlr(J),vBR(I),vlr(J),hgm1)
+!         call VTHV(jkNum, mNum, hgm1, vmat, hgm0)
+!         hgm(J, I, 1:mNum, 1:mNum) = hgm0(1:mNum, 1:mNum)
+!      END DO
+!   END DO
+
+   deallocate(hgm1,hgm0)
+
+end subroutine
+!******************************************************************
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function getAllHgmCon(mNum, hgm)
+   integer, intent(IN) :: mNum
+   double precision, intent(OUT) :: hgm(NDVR(1),NDVR(2),mNum,mNum)
+
+   double precision, allocatable :: vmat(:,:),E0(:)
+   logical :: diag
+   integer :: info
+
+   allocate(vmat(jkNum,jkNum), E0(jkNum), stat=info)
+   if (info/=0) then
+       print *, ' Error in allocating memory in getAllHgmCon!'
+       return
+   endif
+
+   call calHgmR0(RE(2),RE(1),vmat)
+   getAllHgmCon = diag('V',jkNum, vmat, E0)
+   if (getAllHgmCon) then   
+      call getAllHgmRe(mNum,vmat,hgm)
+   end if
+
+   deallocate(vmat,E0)
+
+end function 
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+

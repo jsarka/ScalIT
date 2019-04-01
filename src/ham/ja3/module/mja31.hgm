@@ -1,0 +1,179 @@
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c   a Fast one, but doesn't work well in pvfs: the reason is that 
+!c    the current pvfs doesn't work well for MPI_File_Set_View/MPI_File_Write
+!c
+subroutine MCalSaveHGMOrg()  
+   double precision, allocatable :: H0GM(:,:) 
+   
+   integer(KIND=MPI_OFFSET_KIND) :: offset, of1
+   integer :: i, total, mystart, myend, mylen,realend
+   integer :: fh, ind(2), ftype, info
+   double precision :: wtp1, wtp2, wtp3
+
+   if (myid==rootID) then
+       print *, 'mja31.hgm is used!'
+       print *
+   end if
+
+   allocate(h0gm(jkNum,jkNum), stat=info)
+   if (info/=0) then
+       print *, ' Error in allocating memory in MCalSaveHgmOrg at id=',myid
+       return
+   endif
+
+   ! TVG Get range of indices (r and R) for this process
+   total = rNum;  ! ndvr(1)*ndvr(2)
+   call getMPI1DIndex(total, nProc, myid, mystart, myend, mylen)
+   print *,'id=',myid, ' range of index:',mystart, myend
+
+   ! TVG No idea what this bit does
+   realEnd=myend
+   if (mylen*nProc/=total) then
+      if ((myid+1)*mylen/=myend) realEnd=myEnd+1
+   endif
+
+   ! TVG Create a vector of doubles of len of the first packed index
+   call MPI_TYPE_Vector(jkNum*jkNum,1,total,MPI_DOUBLE_PRECISION,fType,ierr)
+   call MPI_TYPE_COMMIT(fType, ierr)
+
+   ! TVG Open a file in MPI for parallel writing
+   call MPI_File_Open(MPI_COMM_WORLD,fH0Gm,MPI_MODE_WRONLY+MPI_MODE_CREATE,&
+                      MPI_INFO_NULL, fh, ierr)  
+
+   if (myid==rootID) print *
+
+   wtp1 = MPI_WTime()
+
+   do i = mystart, myend
+        call calHGMi(rIndex(1,i), rIndex(2,i), H0GM)
+
+        offset = (i-1)*dbSize
+        call MPI_File_Set_View(fh, offset, MPI_DOUBLE_PRECISION, ftype, & 
+                               'native', MPI_INFO_NULL, ierr) 
+         call MPI_File_Write(fh, H0GM, jkNum*jkNum,MPI_DOUBLE_PRECISION, &
+                             MPI_STATUS_IGNORE,ierr)
+   end do
+
+   wtp2 = MPI_WTime()
+   !print *, 'Thread', myid,'is ready in',wtp2-wtp1
+
+   ! TVG Again no idea about this bit: nothing is written
+   if (realEnd/= myend) then
+        offset = (myend-1)*dbSize
+        call MPI_File_Set_View(fh, offset, MPI_DOUBLE_PRECISION, ftype, &
+                               'native', MPI_INFO_NULL, ierr)
+   end if 
+
+   !print *
+
+   ! TVG Close the file and free the type
+   call MPI_File_Close(fh, ierr)
+   call MPI_TYPE_FREE(ftype,ierr)
+
+   deallocate(H0GM)
+
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine MCalSaveHGMSeq()
+   double precision, allocatable :: H0GM(:)
+
+   integer(KIND=MPI_OFFSET_KIND) :: offset
+   integer :: i, total, mystart, myend, mylen
+   integer :: fh, ind(2), info
+
+   allocate(h0gm(jkNum*jkNum), stat=info)
+   if (info/=0) then
+       print *, ' Error in allocating memory in MCalSaveHgmSeq at id=',myid
+       return
+   endif
+
+   total =rNum;    ! ndvr(1)*ndvr(2)
+   call getMPI1DIndex(total, nProc, myid, mystart, myend, mylen)
+   print *,'id=',myid, ' range of index:',mystart, myend
+ 
+   call MPI_File_Open(MPI_COMM_WORLD,fH0Gm,MPI_MODE_WRONLY+MPI_MODE_CREATE,&
+                      MPI_INFO_NULL, fh, ierr)
+
+   do i = mystart, myend
+        call calHGMi(rIndex(1,i), rIndex(2,i), H0GM)
+        offset = (i-1)*dbSize*jkNum**2
+        call MPI_File_Write_At(fh,offset,H0GM,jkNum**2,MPI_DOUBLE_PRECISION,   &
+                       MPI_STATUS_IGNORE,ierr)
+   end do
+
+   call MPI_File_Close(fh, ierr)
+
+   deallocate(H0GM)
+
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine MCalSaveHGMRe()  
+   double precision,allocatable :: H0GM(:), H0GmC(:) 
+   
+   integer(KIND=MPI_OFFSET_KIND) :: offset
+   integer :: i, total, mystart, myend, mylen, realend
+   integer :: fh, ind(2), ftype, info
+   double precision :: wtp1, wtp2, wtp3
+
+   if (myid==rootID) then
+       print *, 'mja31.hgm is used in compact mode!'
+       print *
+   end if
+
+   allocate(h0gm(jkNum*jkNum), H0GMC(nDVR(3)*nDVR(3)),stat=info)
+   if (info/=0) then
+       print *, ' Error in allocating memory in MCalSaveHgmRe at id=',myid
+       return
+   endif
+
+   total = rNum;   !ndvr(1)*ndvr(2)
+   call getMPI1DIndex(total, nproc, myid, mystart, myend, mylen)
+   print *,'id=',myid, ' range of index:',mystart, myend 
+
+   realEnd=myend
+   if (mylen*nProc/=total) then
+      if ((myid+1)*mylen/=myend) realEnd=myEnd+1
+   endif
+ 
+   call MPI_TYPE_Vector(nDVR(3)**2,1,total,MPI_DOUBLE_PRECISION,fType,ierr)
+   call MPI_TYPE_COMMIT(fType, ierr)
+
+   call MPI_File_Open(MPI_COMM_WORLD,fH0Gm,MPI_MODE_WRONLY+MPI_MODE_CREATE,&
+                      MPI_INFO_NULL, fh, ierr) 
+
+   if (myid==rootID) print *
+
+   wtp1 = MPI_WTime()
+
+   do i = mystart, myend
+        call calHGMi(rIndex(1,i), rIndex(2,i), H0GM)
+        call VTHV(jkNum, ndvr(3), h0GM, REvmat, H0GMC)
+        offset = (i-1)*dbSize
+        call MPI_File_Set_View(fh, offset, MPI_DOUBLE_PRECISION, ftype, & 
+                      'native', MPI_INFO_NULL, ierr) 
+        call MPI_File_Write(fh, H0GMC, nDVR(3)**2, MPI_DOUBLE_PRECISION,&
+                       MPI_STATUS_IGNORE,ierr)
+        print *, 'H0gmc at id=',myid,' for i=',i,':',h0gmc
+   end do
+
+   wtp2 = MPI_WTime()
+   !print *, 'Thread', myid,'is ready in',wtp2-wtp1
+
+   if (realEnd/= myend) then
+        offset = (myend-1)*dbSize
+        call MPI_File_Set_View(fh, offset, MPI_DOUBLE_PRECISION, ftype, &
+                      'native', MPI_INFO_NULL, ierr)
+   end if
+ 
+   call MPI_File_Close(fh, ierr)
+   call MPI_TYPE_FREE(ftype,ierr)
+
+   deallocate(H0GM, H0GMC)
+
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

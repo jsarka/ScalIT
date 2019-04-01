@@ -1,0 +1,35 @@
+#!/bin/bash
+
+DOSB_LIB=../../lib/libdosb.a
+COEFF_OBJS = lnFn.o cg.o threej.o gaunt.o sixj.o ninej.o gauntmod.o threejmod.o #threej2.o 
+
+all: $(COEFF_OBJS)
+	ar -rucs $(DOSB_LIB) $(COEFF_OBJS)
+	rm -f $(COEFF_OBJS)
+
+test:all testcg test3j tg testcjg
+
+testcjg:cjg.drv.o
+	$(FC) -o testcig cjg.drv.o $(DOSB_LIB)
+
+testcg:cg.drv.o 
+	$(FC) -o testcg cg.drv.o $(DOSB_LIB)
+
+test3j:threej.drv.o 
+	$(FC) -o test3j threej.drv.o $(DOSB_LIB)
+
+tg:gaunt.drv.o 
+	$(FC) -o testGa gaunt.drv.o $(DOSB_LIB)
+
+
+%.o:%.f90
+	$(FC) -c $<
+#	$(FC) -c $*.f90 
+
+clean:	
+	rm -f *.o *~ core
+	rm -f test*
+
+cleanall:clean
+	rm -f *.mod *.MOD 
+

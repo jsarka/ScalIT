@@ -1,0 +1,144 @@
+!*************************************************
+subroutine calSaveHGM()
+   double precision :: ct1, ct2
+
+   call CPU_Time(ct1)
+
+   print *
+   print *, ' Save HGm in Binary file:', fH0GM
+
+   if (nDVR(3)>=jkNum) nDVR(3)=0
+
+   select case (nDVR(3))
+   case (:-1)
+       print *, ' Do not do further calculation for H0GM'
+       print *, ' Contracted Size:', rNum
+
+   case (0)
+       print *, ' Calculating H0GM and Save in Grid Order.........'
+       print *, ' H0GM are stored in H0GM(ndvr(1),ndvr(2),jkNum,jkNum)'
+       print *, ' H0GM can be used in OSB directly.'
+       print *, ' The data size:',ndvr(1),'x',ndvr(2),'x',jknum,'x',jknum
+       
+       call calSaveHgmOrg()     ! no compact, directly used in OSB
+ 
+   case (1) 
+       print *, ' Calculating H0GM and Save in Sequential Order .........'
+       print *, ' H0GM are stored in H0GM(jknum,jknum,ndvr(1),ndvr(2))'
+       print *, ' It should be further compacted befored used in OSB'
+       print *, ' The data size:',jknum,'x',jknum,'x',ndvr(1),'x',ndvr(2)
+
+       call calSaveHgmSeq()
+ 
+   case default       
+       print *, ' Calculating H0 at compacted basis sets .........'
+       print *, ' H0GM are stored in H0GM(ndvr(1),ndvr(2),ndvr(3),ndvr(3))'
+       print *, ' Original basis size:', jkNum, ' x', jkNum
+       print *, ' Compacted basis size:', nDVR(3), ' x', nDVR(3)
+       print *, ' H0GM can be used in OSB directly!'
+       print *, ' The data size:',ndvr(1),'x',ndvr(2),'x',ndvr(3),'x',ndvr(3)
+
+       call calSaveHgmRe()   
+   end select
+
+   call CPU_Time(ct2)
+   print *, ' CPU Time to calculate and Save H0GM(s):', (ct2-ct1)
+   print *
+
+end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calSaveHGMOrg()
+   integer (kind=8) :: gmSize
+   integer          :: info
+   double precision, allocatable :: H0GM0(:)
+ 
+   gmSize=rNum*jkNum*jkNum
+
+   allocate(H0gm0(gmSize), stat=info)
+
+   if (info==0) then
+
+      call getAllHGM(H0GM0);
+
+      call saveDataDir(gmSize, H0GM0, fH0GM)
+
+      deallocate(H0Gm0)
+   else
+      print *, ' Error in Memory Allocation for H0Gm'
+   end if
+
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calSaveHGMSeq()  
+   double precision, allocatable :: H0GM(:)
+   integer :: num, info
+   integer (kind=8) :: ind 
+   integer :: i, j
+
+   allocate( H0GM(jkNum*jkNum),stat=info)
+   if (info/=0) then
+      print *, ' Error in memory allocation in calSaveHGMSeq()!'
+      return
+    end if
+        
+   inquire(IOLENGTH=num) H0Gm
+   open(99, FILE=fH0GM, status='Replace', form='UNFORMATTED', &
+        ACCESS='direct', RECL=num, IOSTAT=ind)
+   if (ind/=0) then
+      print *, ' Error in opening file:', fH0Gm
+      return 
+   end if
+
+   ind = 0
+   do i = 1, rNum
+      call calHGMi(rIndex(1,i), rIndex(2,i), H0GM)
+      ind = ind + 1
+      write(99, rec=ind) H0GM
+   end do
+
+!   do i = 1, ndvr(2)
+!      do j = 1, ndvr(1)
+!         call calHGMi(j, i, H0GM)
+!         ind = ind + 1
+!         write(99,rec=ind) H0GM
+!      end do
+!   end do
+
+   close(99)
+
+   deallocate(H0GM)
+
+end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calSaveHgmRe()
+   double precision, allocatable :: Vmat(:,:), H0Gm(:)
+   integer :: info
+   integer (kind=8) :: njk
+
+   njk = rNum*ndvr(3)*ndvr(3)
+
+   allocate(vmat(jkNum,nDVR(3)),H0Gm(njk),stat=info)
+   if (info/=0) then
+     print *, ' Error in memory allocation in calSaveHgmRe() !'
+     return
+   end if
+
+   if (calSaveVmat(nDVR(3),Vmat)) then
+       call getAllHgmRe(ndvr(3),vmat,H0gm)
+       call saveDataDir(njk, H0GM, fH0GM)
+   else
+       print *, ' Error in calculate Vmat!'
+   end if
+
+   deallocate(vmat, H0GM)
+
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+

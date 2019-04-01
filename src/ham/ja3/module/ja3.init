@@ -1,0 +1,78 @@
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c         Subroutines to allocate/deallocate memory                 c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function allocJA3()
+   integer :: get3Size, getPjmSize
+   integer :: info, i
+
+   allocJA3 = .FALSE.
+   fixLR=((FcFlag==FCALL).OR.(FcFlag==FCLR))
+   fixBR=((FcFlag==FCALL).OR.(FcFlag==FCBR))
+
+   if (fixLR) NDVR(1)=1
+   if (fixBR) NDVR(2)=1
+        
+           ! allocate memory for DVR
+   allocate(hlr(NDVR(1),NDVR(1)),lr(NDVR(1)),vlr(NDVR(1)),   &
+            momlr(NDVR(1)),Elr(NDVR(1)),                     &
+            hBR(NDVR(2),NDVR(2)),BR(NDVR(2)),vBR(NDVR(2)),   &
+            momBR(NDVR(2)),EBr(NDVR(2)), stat=info)
+   if (info /= 0) return
+         
+            ! allocate memory for Gauss-Legendre/Chebeshev integration
+   allocate(wth(NGI(1)), xth(NGI(1)), cth(NGI(1)), stat=info)
+   if (info /= 0) return
+         
+   call YjNodes(NGI(1), cth, wth)
+   xth(1:NGI(1)) = ACOS(cth(1:NGI(1)))
+
+   p1NMax = getPjmSize(JMax(1))
+   jkNum  = get3Size(parity, JTol, JMax(1))       
+   allocate(pjm1(NGI(1), p1NMax),jIndex(jkNum),kIndex(jkNum),stat=info)
+   if (info /= 0) return
+
+   call AllYjmPolys(NGI(1),JMax(1),cth,pjm1)
+   call get3Index(parity, JTol, JMAX(1), jkNum, jIndex, kIndex)
+
+   allocJA3 = .TRUE.
+         
+end function
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine deallocJA3()
+   if (allocated(lr))    deallocate(lr)
+   if (allocated(vlr))   deallocate(vlr)
+   if (allocated(momlr)) deallocate(momlr)
+   if (allocated(Elr))   deallocate(Elr)
+   if (allocated(Hlr))   deallocate(Hlr)
+
+   if (allocated(BR))    deallocate(BR)
+   if (allocated(vBR))   deallocate(vBR)
+   if (allocated(momBR)) deallocate(momBR)
+   if (allocated(EBr))   deallocate(EBr)
+   if (allocated(HBR))   deallocate(HBR)
+
+   if (allocated(rIndex)) deallocate(rIndex)
+
+   if (allocated(xth))   deallocate(xth)
+   if (allocated(cth))   deallocate(cth)
+   if (allocated(wth))   deallocate(wth)
+     
+   if (allocated(pjm1))   deallocate(pjm1)
+   if (allocated(jIndex)) deallocate(jIndex)
+   if (allocated(kIndex)) deallocate(kIndex)
+
+     !----------  Splining Data  -----------
+   if (allocated(splr))  deallocate(splr)
+   if (allocated(spvlr)) deallocate(spvlr)
+   if (allocated(spMlr)) deallocate(spMlr)
+
+   if (allocated(spBr))  deallocate(spBr)
+   if (allocated(spvBr)) deallocate(spvBr)
+   if (allocated(spMBr)) deallocate(spMBr)  
+end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

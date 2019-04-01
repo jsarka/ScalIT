@@ -1,0 +1,63 @@
+!*****************************************************************
+!*               Subroutine to calculate Hgm matrix              *
+!*****************************************************************
+
+!*************    DO the real work ****************************
+subroutine myHGM(br0,lr0,mBr,mlr,pBR,plr,Hgm0)
+   double precision, intent(IN)  :: br0,lr0,mBR,mlr,pBR,plr
+   double precision, intent(OUT) :: Hgm0(jkNum,jkNum)
+
+   double precision ::  pesGM0(NGI(1)), tmp, potJA3
+   integer :: II, JJ, J, K
+   integer :: ind1, ind2, getPjmPos
+
+   Hgm0(1:jkNum,1:jkNum) = 0.0D0
+   DO II = 1, jkNum
+      J = jIndex(II); k = kIndex(II)       
+      DO JJ = 1, II
+         IF (j == jIndex(JJ) ) then
+            IF (k == kIndex(JJ)) then
+               hgm0(II,JJ)= j*(j+1)*mlr+(JTOL*(JTOL+1)+j*(j+1)-2*K*K)*mBR-pbr-plr
+            ELSE
+               IF ((k+1) == kIndex(JJ)) THEN
+                  hgm0(II,JJ)=-DSQRT((JTOL*(JTOL+1.0D0)-K*(K+1.0D0))  &
+                              *(j*(j+1.0D0)-K*(K+1.0D0)))* mBR
+                  IF (k==0)  hgm0(II,JJ) = SQRT2*hgm0(II,JJ)
+               ELSE
+                  IF ((k-1) == kIndex(JJ)) THEN
+                     hgm0(II,JJ)=-DSQRT((JTOL*(JTOL+1.0D0)-K*(K-1.0D0)) &
+                                  *(j*(j+1.0D0)-K*(K-1.0D0)))*mBR
+                     IF (k==1)  hgm0(II,JJ) = SQRT2*hgm0(II,JJ)                              
+                  END IF
+               END IF
+            END IF
+         END IF
+      END DO   
+   END DO    
+
+   do II = 1, NGI(1)
+      pesGM0(ii) = potJA3(BR0, lr0, xth(ii))
+   end do
+
+   !call POT_CGM(BR0, lr0, NGI(1), cth, pesGM0)
+   
+   DO II = 1, jkNum
+      k = kIndex(II)
+      DO JJ = 1, II
+         IF (k == kIndex(JJ)) then                
+            ind1 = getPjmPos(Jmax(1), jIndex(II), k)
+            ind2 = getPjmPos(JMax(1), jIndex(JJ), k)
+            tmp = sum(wth(1:NGI(1))*pjm1(1:NGI(1),ind1)*     &
+                         pjm1(1:NGI(1),ind2)*pesGM0(1:NGI(1)))
+            hgm0(II,JJ)=hgm0(II,JJ)+tmp
+         END IF
+      END DO           
+   END DO
+
+   DO II = 1, jkNum
+      DO JJ = 1, II-1
+         hgm0(JJ,II) = hgm0(II,JJ)
+      END DO
+   END DO
+end subroutine
+!***************************************************************************

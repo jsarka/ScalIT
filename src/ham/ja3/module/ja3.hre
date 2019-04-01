@@ -1,0 +1,107 @@
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calHgmRe(hRe)
+   double precision, intent(OUT) :: hRe(jkNum, jkNum)
+
+   call calHgmR0(RE(2), RE(1), hRe)
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function calHgmVmat(mNum, Vmat, E0)
+   integer, intent(IN) :: mNum
+   double precision, intent(OUT) :: vmat(jkNum, mNum), E0(mNum)
+
+   double precision :: hRe(jkNum, jkNum), E1(jkNum)
+   logical :: diag
+
+   call calHgmR0(RE(2), RE(1), hRe)
+
+   calHgmVmat = diag('V',jkNum, hRe, E1)
+
+   if (calHgmVmat) then
+      Vmat(1:jkNum,1:mNum)=hRe(1:jkNum,1:mNUm)
+      E0(1:mNum) = E1(1:mNum)
+   end if
+end function
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calHgmR0(br0, lr0,  Hgm0)
+   double precision, intent(IN)  :: br0, lr0
+   double precision, intent(OUT) :: Hgm0(jkNum,jkNum)
+   external :: fitVBR, fitVlr
+
+   double precision :: mBR, mlr, pBR, plr
+   double precision :: br00(1),lr00(1),pBR00(1), plr00(1)
+
+   mBR = 0.5D0/(MASS(2)*BR0*BR0)
+   mlr = 0.5D0/(Mass(1)*lr0*lr0)
+   br00(1)=br0; lr00(1)=lr0
+
+   if (useSP) then
+      call calVBR(1, br00, pbr00)
+      call calVlr(1, lr00, plr00)
+   else
+      call fitVBR(1, br00, pbr00)
+      call fitVlr(1, lr00, plr00)
+   end if
+
+   pBR=pBR00(1); plr=plr00(1)
+   call myHGM(br0,lr0,mBR,mlr,pBR,plr, Hgm0)
+
+end subroutine
+!******************************************************************
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function calSaveVmat(mNum, vmat)
+   integer, intent(IN) :: mNum
+   double precision, intent(OUT) :: Vmat(jkNum, mNum)
+
+   double precision,allocatable :: H0RE(:,:),RE0(:)
+   integer :: info, njk
+   logical :: diag, loadOK
+
+   calSaveVmat = .false.
+
+   allocate(RE0(jkNum), H0RE(jkNum,jkNum), stat=info)
+   if (info/=0)  return
+
+   ! load data first
+   loadOK=.false.
+   if (ReFlag<0) then
+      open(99,file=fRE, status='Old', form='UNFORMATTED',iostat=info)
+      loadOK=(info==0)
+      if (info==0) then
+         read(99) njk
+         loadOK=(njk==jkNum)
+         if (loadOK) read(99) RE0(1:jkNum), Vmat(1:jkNum,1:mNum)
+      end if
+      close(99)
+   end if
+      
+   if (.NOT. loadOK) then
+      call calHgmR0(RE(2), RE(1), H0Re)
+
+      if (diag('V',jkNum, H0Re, RE0))  then
+         Vmat(1:jkNum,1:mNum)=h0Re(1:jkNum,1:mNUm)
+         if (ReFlag/=0) then
+            open(99,file=fRE,status='Replace',FORM='UNFORMATTED')
+            write(99) jkNum
+            write(99) RE0(1:jkNum), H0RE(1:jkNum,1:jkNum)
+            close(99)
+         endif
+         loadOK = .true.
+      end if
+   end if
+
+   if (loadOK) then
+       print *, ' Eigen values of H0RE:'
+       print *, RE0(1:mNum)
+       calSaveVmat=.true.
+   end if
+
+   deallocate(H0RE,RE0)
+
+end function
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+

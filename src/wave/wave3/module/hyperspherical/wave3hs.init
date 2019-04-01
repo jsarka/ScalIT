@@ -1,0 +1,58 @@
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c    Subroutines to initialize wave3hs module         c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function allocW3()
+   integer :: info
+
+   if (NMAX(3)==NS(3)) then
+      allocate(Vlr(NMax(1),NS(1)),VBR(NMax(2),NS(2)),VP(NTotal,NState), &
+               V0(NS(1),NS(2),NS(3)),V1(NS(1),NS(2),NS(3)),             &
+               V2(NS(1),NS(2),NS(3)),P0(NState,NR(1),NR(2),NR(3)),      &
+               myR1(NR(1)), myR2(NR(2)), myR3(NR(3)),jkInd(NMAX(3)),    &
+               jIndex(NMAX(3)), kIndex(NMAX(3)), stat=info)
+   else
+      allocate(Vlr(NMax(1),NS(1)),VBR(NMax(2),NS(2)),VP(NTotal,NState), &
+               V0(NS(1),NS(2),NS(3)),V1(NS(1),NS(2),NS(3)),             &
+               V2(NS(1),NS(2),NS(3)),P0(NState,NR(1),NR(2),NR(3)),      &
+               myR1(NR(1)), myR2(NR(2)), myR3(NR(3)),jkInd(NMAX(3)),    &
+               jIndex(NMAX(3)), kIndex(NMAX(3)), VTh(NMax(3),NS(3)),    &
+               stat=info)
+   end if
+   
+   allocW3 = (info==0)
+
+end function
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function getVW3()
+
+   logical :: getPartDVRV_Sinc2,getPISTV_Index, getConV  
+
+   getVW3 = getPartDVRV_Sinc2(fVlr,NMax(1),NS(1),lrMin,lrMax,Vlr)
+
+   if (getVW3) then
+       getVW3=getPartDVRV_Sinc2(fVBR,NMax(2),NS(2),BRMin,BRMax,VBR)
+
+       if (getVW3) then
+           getVW3 = getPISTV_Index(fVP,Ntotal,NState,NSInd,VP)
+
+           if (getVW3) then
+               if (NMAX(3)/=NS(3))  getVW3=getConV(fVTh,NMax(3),NS(3),VTH)
+               if (.NOT.getVW3) write(*,100) fVTh
+           else
+               write(*,100) fVp
+           end if
+       else
+           write(*,100) fVBR
+       end if
+   else
+       write(*,100) fVlr
+   end if
+
+   100 format(' Error in getting data from file:', A)
+
+end function
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

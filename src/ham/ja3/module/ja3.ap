@@ -1,0 +1,125 @@
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c   subroutine to calculate absorption potential        c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calSaveAP()
+   double precision, allocatable :: APP(:), APR(:)
+   integer :: info, nSize
+   
+   select case (nDVR(3))
+   case (:-1)
+       nSize=1;
+   case (0,1)
+       nSize=jkNum
+   case default
+       nSize=ndvr(3)
+   end select
+   
+   if (nSize>jkNum) nSize=jkNum
+
+   select case (absFlag)
+   case (ABS_ONE)
+       allocate(APP(rNum*nSize), stat=info)
+       if (info/=0) then
+          print *, ' Error in memory allocation in calSaveAP!'
+          return
+       end if
+       call calAPP(1,nSize,APP)
+       open(99,file=fAbs,form='unformatted',status='replace')
+       write(99) APP
+       close(99)
+       
+   case (ABS_TWO)
+       allocate(APP(rNum*nSize), APR(rNum*nSize), stat=info)
+       if (info/=0) then
+          print *, ' Error in memory allocation in calSaveAP!'
+          return
+       end if
+       call calAPR(1,nSize,APR)
+       call calAPP(2,nSize,APP)
+       open(99,file=fAbs,form='unformatted',status='replace')
+       write(99) APR
+       write(99) APP
+       close(99)
+
+   end select
+
+   if (allocated(APP))  deallocate(APP)
+
+   if (allocated(APR))  deallocate(APR)
+
+end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c            Reactant absorption potential              c       
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calAPR(opt, nSize, vAP)
+   integer :: opt, nSize
+   double precision, intent(OUT) :: VAP(rNum,nSize)
+
+   integer :: i
+   double precision :: tmp, Rmin, Rmax,A00,En0,t0 
+
+   if (opt==2) then
+      i=2;
+   else
+      i=1;
+   end if 
+  
+   Rmin = min(Rabs0(i),Rabs1(i))
+   Rmax = max(Rabs0(i),Rabs1(i))
+   A00 = en(i);   En0 = en(i)
+
+   do i = 1, rNum
+      t0 = BR(rIndex(2,i))
+      if (t0>Rmax) then
+          tmp=0.0D0;
+      else
+          tmp = (t0-Rmax)/(Rmin-Rmax)
+          tmp = A00 * (tmp ** en0 )
+      endif
+      VAP(i,1:nSize) = tmp
+   end do
+
+end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c             Product absorption potential              c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calAPP(opt, nSize, vAP)
+   integer :: opt, nSize
+   double precision, intent(OUT) :: VAP(rNum,nSize)
+
+   integer :: i
+   double precision :: tmp, Rmin, Rmax,A00,En0,t0
+ 
+   if (opt==2) then
+      i=2;
+   else
+      i=1;
+   end if
+
+   Rmin = min(Rabs0(i),Rabs1(i))
+   Rmax = max(Rabs0(i),Rabs1(i))
+   A00 = en(i);   En0 = en(i)
+
+   do i = 1, rNum
+      t0 = BR(rIndex(2,i))
+      if (t0<Rmin) then
+          tmp=0.0D0;
+      else
+          tmp = (t0-Rmin)/(Rmax-Rmin)
+          tmp = A00 * (tmp ** en0 )
+      endif
+      VAP(i,1:nSize) = tmp
+   end do
+
+end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+

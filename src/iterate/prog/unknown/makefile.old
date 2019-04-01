@@ -1,0 +1,95 @@
+#!/bin/bash
+
+MOSB_LIBS  = ../../lib/libmosb.a  ../../lib/libosb.a
+
+MMOD_OBJS = ../mtype/mosbtype.o  ../mosb/mosb.o ../mosb/mosbp.o 
+PMOD_OBJS = ../mtype/mosbtype.o  ../posb/posb.o ../posb/posbp.o 
+
+BINDIR=../../bin
+
+all:update mosb mosb1 posb
+
+test:all
+
+testtest: update testOsb ptestOsb
+
+testall:  update test testEig testHX testPX testHij testOsb ptestOsb
+
+update:
+	cp ../mosb/*.mod  ./
+	cp ../posb/*.mod  ./
+
+mosb: mosb.drv.o
+	$(MPI_FC) -o $(BINDIR)/mosb mosb.drv.o  $(MMOD_OBJS) $(MOSB_LIBS) $(OSB_FLAGS)
+	rm -f mosb.drv.o
+	echo 
+
+mosb1: mosb1.drv.o
+	$(MPI_FC) -o $(BINDIR)/mosb1 mosb1.drv.o  $(MMOD_OBJS) $(MOSB_LIBS) $(OSB_FLAGS)
+	rm -f mosb.drv.o
+	echo 
+
+posb: posb.drv.o
+	$(MPI_FC) -o $(BINDIR)/posb posb.drv.o $(PMOD_OBJS) $(MOSB_LIBS) $(OSB_FLAGS)
+	rm -f posb.drv.o
+	echo
+
+testEig: mtanEig.drv.o
+	$(MPI_FC) -o $(BINDIR)/mosbEig mtanEig.drv.o  $(MMOD_OBJS) $(MOSB_LIBS) $(OSB_FLAGS)
+	rm -f mtanEig.drv.o
+	echo
+
+testHX: mtanHX.drv.o
+	$(MPI_FC) -o $(BINDIR)/mosbHX  mtanHX.drv.o  $(MMOD_OBJS) $(MOSB_LIBS)  $(OSB_FLAGS)
+	rm -f mtanHX.drv.o
+	echo
+
+testPX: mtanPX.drv.o
+	$(MPI_FC) -o $(BINDIR)/mosbPX mtanPX.drv.o  $(MMOD_OBJS) $(MOSB_LIBS) $(OSB_FLAGS)
+	rm -f mtanPX.drv.o
+	echo
+
+testHij: mtanHij.drv.o
+	$(MPI_FC) -o $(BINDIR)/mosbHij mtanHij.drv.o  $(MMOD_OBJS) $(MOSB_LIBS) $(OSB_FLAGS)
+	rm -f mtanHij.drv.o
+	echo
+
+testOsb: mtest.drv.o
+	$(MPI_FC) -o $(BINDIR)/mtest mtest.drv.o  $(MMOD_OBJS) $(MOSB_LIBS) $(OSB_FLAGS)
+	rm -f mtest.drv.o
+	echo
+
+testOsb1: mtest1.drv.o
+	$(MPI_FC) -o $(BINDIR)/mtest1 mtest1.drv.o  $(MMOD_OBJS) $(MOSB_LIBS) $(OSB_FLAGS)
+	rm -f mtest.drv.o
+	echo
+
+ptestOsb: ptest.drv.o
+	$(MPI_FC) -o $(BINDIR)/ptest ptest.drv.o $(PMOD_OBJS) $(MOSB_LIBS) $(OSB_FLAGS)
+	 rm -f ptest.drv.o
+	echo
+
+%.o:%.f90
+	$(MPI_FC) -c $<
+#	$(FC) -c $*.f90 
+
+#%.o:%.f 
+#	$(FC) -c $< 
+
+
+clean:	
+	rm -f test_* *~ core 
+
+cleanall:clean
+	rm -f *.o *.mod *.MOD
+	rm -f $(BINDIR)/mosb
+	rm -f $(BINDIR)/mosb1
+	rm -f $(BINDIR)/posb
+	rm -f $(BINDIR)/mosbEig 
+	rm -f $(BINDIR)/mosbHX
+	rm -f $(BINDIR)/mosbPX
+	rm -f $(BINDIR)/mosbHij
+	rm -f $(BINDIR)/mtest
+	rm -f $(BINDIR)/mtest1
+	rm -f $(BINDIR)/ptest
+

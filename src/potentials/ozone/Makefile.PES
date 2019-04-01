@@ -1,0 +1,27 @@
+.SUFFIXES:
+.SUFFIXES: .f .f90 .o
+#FL = ifort
+FL = gfortran
+#FL = /opt/mpich/intel/fc/mpich-1.2.7p1/bin/mpif90
+CMPLFLG = -c -O3 -ffree-line-length-none #-lmpi
+#CMPLFLG = -C  
+LNKFLG = -o $(TARGET) #-L/opt/intel/l_mkl_enh_p_9.1.021/lib/32/ -Vaxlib -lguide -lmkl_lapack -lmkl_ia32  -i-static
+TARGET = ozone.x
+
+#OBJS = dynamic_parameters_3D.o index.o sample_main_ozone.o PES_3D_subroutine_ozone_closed2s.o
+#OBJS = dynamic_parameters_3D.o index.o sample_main_ozone.o PES_3D_subroutine_ozone_FV.o
+OBJS =  dynamic_parameters_3D.o splin.o index.o sample_main_ozone.o PES_3D_subroutine_ozone_L3.o VLGRoo.o C6Js.o  C6r.o  Celr.o  CJe.o  cleb.o  faclog.o 2D-spline.o
+$(TARGET) : $(OBJS)
+	$(FL) $(OBJS) $(LNKFLG)
+
+# this is a freeform
+
+$(OBJS) :
+
+#equivalent to
+#%.f : %.o
+.f90.o:
+	$(FL) $(CMPLFLG) $<
+
+.f.o:
+	$(FL) $(CMPLFLG) $<

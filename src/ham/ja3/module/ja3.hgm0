@@ -1,0 +1,132 @@
+!*****************************************************************
+!*              interfaces to calculate Hgm matrix               *
+!*****************************************************************
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+! TVG This routine converts int indices I1, I2 to corresponding R and r values
+! of position, momentum (assumedly), and potential
+subroutine calHgmI(I1, I2, hgm)
+   integer, intent(IN) :: I1, I2
+   double precision, intent(OUT) :: hgm(jkNum,jkNum)
+
+   call myHGM(BR(i2),lr(i1),momBR(I2),momlr(i1),vBR(I2),vlr(i1),hgm)
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calHgmICon(mNum, vmat, I1, I2, hgm)
+   integer, intent(IN) :: mNum, I1, I2
+   double precision, intent(IN)  :: vmat(jkNum, mNum)
+   double precision, intent(OUT) :: hgm(mNum, mNum)
+
+   double precision, allocatable :: hgm1(:,:)
+   integer :: info
+
+   allocate(hgm1(jkNum,jkNum), stat=info)
+   if (info/=0) then
+       print *, ' Error in allocating memory in calHgmICon!'
+       return
+   endif
+
+   call myHGM(BR(i2),lr(i1),momBR(I2),momlr(i1),vBR(I2),vlr(i1),hgm1)
+
+   call VTHV(jkNum, mNum, hgm1, vmat, hgm)
+
+   deallocate(hgm1)
+
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!******************************************************************
+subroutine getAllHgm(hgm)
+   !double precision, intent(OUT) :: hgm(NDVR(1),NDVR(2),jKNum,jkNum)
+   double precision, intent(OUT) :: hgm(rNum,jKNum,jkNum)
+
+   integer :: I, J, info, kk
+   double precision, allocatable :: hgm1(:,:)
+
+   allocate(hgm1(jkNum,jkNum), stat=info)
+   if (info/=0) then
+       print *, ' Error in allocating memory in getAllHgm!'
+       return
+   endif
+
+   do kk = 1, rNum
+      i = rIndex(2,kk); j=rIndex(1,kk)
+      call myHGM(BR(i),lr(J),momBR(I),momlr(J),vBR(I),vlr(J),hgm1)
+      hgm(kk, 1:jkNum, 1:jkNum) = hgm1(1:jkNum, 1:jkNum)
+   end do
+
+!   DO I = 1, NDVR(2)
+!     DO J = 1, NDVR(1)
+!        call myHGM(BR(i),lr(J),momBR(I),momlr(J),vBR(I),vlr(J),hgm1)
+!        hgm(J, I, 1:jkNum, 1:jkNum) = hgm1(1:jkNum, 1:jkNum)
+!     END DO
+!   END DO
+
+   deallocate(hgm1)
+
+end subroutine
+!******************************************************************
+
+!******************************************************************
+subroutine getAllHgmRe(mNum, vmat, hgm)
+   integer, intent(IN) :: mNum
+   double precision, intent(IN)  :: vmat(jknum,mNum)
+   double precision, intent(OUT) :: hgm(rNum,mNum,mNum)
+   !double precision, intent(OUT) :: hgm(NDVR(1),NDVR(2),mNum,mNum)
+
+   integer :: i, j, kk, info
+   double precision,allocatable :: hgm1(:,:), hgm0(:,:)
+
+   allocate(hgm1(jkNum,jkNum), hgm0(mNum,mNum), stat=info)
+   if (info/=0) then
+       print *, ' Error in allocating memory in getAllHgmRe!'
+       return
+   endif  
+
+   do kk = 1, rNum
+      i = rIndex(2,kk); j = rIndex(1,kk)
+      call myHGM(BR(i),lr(J),momBR(I),momlr(J),vBR(I),vlr(J),hgm1)
+      call VTHV(jkNum, mNum, hgm1, vmat, hgm0)
+      hgm(kk, 1:mNum, 1:mNum) = hgm0(1:mNum, 1:mNum)
+   end do
+
+!   DO I = 1, NDVR(2)
+!      DO J = 1, NDVR(1)
+!         call myHGM(BR(i),lr(J),momBR(I),momlr(J),vBR(I),vlr(J),hgm1)
+!         call VTHV(jkNum, mNum, hgm1, vmat, hgm0)
+!         hgm(J, I, 1:mNum, 1:mNum) = hgm0(1:mNum, 1:mNum)
+!      END DO
+!   END DO
+
+   deallocate(hgm1,hgm0)
+
+end subroutine
+!******************************************************************
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function getAllHgmCon(mNum, hgm)
+   integer, intent(IN) :: mNum
+   double precision, intent(OUT) :: hgm(NDVR(1),NDVR(2),mNum,mNum)
+
+   double precision, allocatable :: vmat(:,:),E0(:)
+   logical :: diag
+   integer :: info
+
+   allocate(vmat(jkNum,jkNum), E0(jkNum), stat=info)
+   if (info/=0) then
+       print *, ' Error in allocating memory in getAllHgmCon!'
+       return
+   endif
+
+   call calHgmR0(RE(2),RE(1),vmat)
+   getAllHgmCon = diag('V',jkNum, vmat, E0)
+   if (getAllHgmCon) then   
+      call getAllHgmRe(mNum,vmat,hgm)
+   end if
+
+   deallocate(vmat,E0)
+
+end function 
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+

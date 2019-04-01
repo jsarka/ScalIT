@@ -1,0 +1,62 @@
+#!/bin/bash
+
+include ../../Makefile.inc
+
+EXT_OBJS = ../poly/poly.o     ../poly/yjm.o    \
+           ../poly/gauLege.o  ../poly/chev.o   \
+           ../index/index_pjm.o  ../index/index_CF.o  \
+           ../dvr/sinc_xh.o      ../dvr/sinc.o \
+           ../../oio/io.o        ../../oio/iodirect.o \
+           ../../obase/mm.o  \
+           ../func/spline.o      ../func/splint.o  \
+           ../../obase/util.o    ../../pes/ne3/pot_ne3.o
+      
+OBJS = bj_diag.o bj_jacobi.o bj_vupdate.o ndprconv.o ndpr.o 
+
+all:test testall
+
+test : $(OBJS) test_lr test_BR testconv  testres3 testh0
+
+testall : testconv testfmk testtheta testfmkInt 
+
+test_lr: ndp_lr.drv.o $(OBJS)
+	$(FC) -o test_lr  ndp_lr.drv.o $(EXT_OBJS)  $(OBJS) $(FC_FLAGS)
+
+test_BR: ndp_BR.drv.o $(OBJS)
+	$(FC) -o test_BR  ndp_BR.drv.o $(EXT_OBJS)  $(OBJS) $(FC_FLAGS)
+
+testfmk:fmk.drv.o $(OBJS)
+	$(FC) -o test_fmk  fmk.drv.o $(EXT_OBJS) $(OBJS) $(FC_FLAGS)
+
+testtheta:theta.drv.o $(OBJS)
+	$(FC) -o test_theta theta.drv.o $(EXT_OBJS) $(OBJS) $(FC_FLAGS)
+
+testfmkInt:fmkInt.drv.o $(OBJS)
+	$(FC) -o test_fmkInt  fmkInt.drv.o $(EXT_OBJS) $(OBJS) $(FC_FLAGS)
+
+testconv:ndprconv.o ndprconv.drv.o
+	$(FC) -o ndprconv ndprconv.drv.o $(OBJS) $(EXT_OBJS) $(FC_FLAGS)
+
+testres3:res3.drv.o potFunc.o 
+	$(FC) -o res3 res3.drv.o potFunc.o ../../pes/ne3/pot_ne3.o ../poly/poly.o \
+        ../../oio/io.o ../../oio/iodirect.o
+
+testh0:r3h0.drv.o  
+	$(FC) -o r3h0 r3h0.drv.o ../../oio/io.o ../../oio/iodirect.o
+
+ndpr.o:ndpr.f90 ndpr.data ndpr.io  ndpr.dpr ndpr.xyz ndpr.rtp ndpr.size 
+
+.SUFFIXES: .f90 .o
+
+#.f90.o:
+#	$(FC) $(FCFLAGSS) -c $<
+
+%.o:%.f90 
+	$(FC) -c $< 
+
+clean:	
+	rm -f test*  r3h0 res3 ndprconv *~ core
+
+cleanall:clean
+	rm -f *.o *.mod *.MOD 
+

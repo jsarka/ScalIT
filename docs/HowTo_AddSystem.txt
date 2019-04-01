@@ -1,0 +1,48 @@
+JA3 system addition notes:
+
+1.) The following files are necessary to add system functionality.  This is for a triatomic 
+	molecule.  For tetraatomic molecules, more files need to be added, but the overall
+	theme is the same.  
+	
+	$(MOL) is the generic name I am using here to denote the name of the molecular 
+	system.  If our system was HO2, then $(MOL)=ho2 for all of these files.
+
+	The following needs to be put into the ScalIT/src/potentials/$(MOL) directory.  If the 
+	directory does not exist, create it:
+	
+		ap.f90    $(PES).f    pot_$(MOL).f90    Makefile    $(MOL).drv.f90  
+	
+	The following files need to be put in the ScalIT/data/$(MOL) directory, if the directory
+	does not exist, then create it:
+	
+		$(MOL)_vBR.dat  $(MOL)_vlr.dat  
+
+	-----------------------------------------------------------------------------------------------------------------		
+    ap.f90         ---  file for calculating absorption potentials, only used for scattering
+    $(PES).f       ---  Potential energy surface file.  The $(PES) refers to whatever the filename
+						is called.
+	Makefile       ---  This is an adapted copy of the low-level make file. Copy Makefile from
+                        a working example, such as from ScalIT/src/systems/ho2 for so2, and modify the
+                        MOL and MOD (="ja3" for triatomics) settings.
+    pot_$(MOL).f90 ---  wrapper file that links the PES to ScalIT.  Just change the name of
+                        $(MOL) to any given system that you are adding.  
+    $(MOL)_vBr.dat ---  PSODVR data for 1st step.  This is only necessary if you plan to use 
+	                    splining functions to create the optimized PSOVBR. This file is created 
+					    outside of ScalIT. I currently use Mathematica to create this data, 
+					    and will be explained in detail in a different file called 
+					    HowTo_CreatePSOVBRData.
+    $(MOL)_vlr.dat ---  Same as above, more PSODVR data, but for the little r Jacobi coordinate.
+    -----------------------------------------------------------------------------------------------------------------
+	
+2.) The main function in the wrapper for the potential needs to be named potJA3
+    with the inputs of BR, lr, and theta, all double precision.  The function 
+    itself is double precision.  If the PES used is in a coordinate system other than Jacobi
+	coordinates, then this function should provide the necessary coordinate transformation.
+
+3.) If you plan to use analytical functions for the optimized 1D effective potentials, then they are added
+    into the pot_$(MOL).f90 file under the fitVBR and fitVlr subroutines for big R and little r 
+	respectively.  If you plan to use splines and data files for the optimized potentials, then returning V0 as 
+	0.0D0 is sufficient for those subroutines.  They must still exist, but they are not used.  An 
+	example of this can be seen in the ho2 system under the pot_ho2.f90 file.
+	
+	

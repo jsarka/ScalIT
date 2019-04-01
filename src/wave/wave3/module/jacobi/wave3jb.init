@@ -1,0 +1,66 @@
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c    Subroutines to initialize wave3JB module         c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c         Allocate memory for the module             c
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function allocW3()
+   integer :: info
+   
+   allocate(Vlr(NS(1),NR(1)),VBr(NS(2),NR(2)),              &
+            myR1(NR(1)),myR2(NR(2)), myR3(NR(3)),           &
+!            V0(NR(1),NR(2),NR(3)),V1(NR(1),NR(2),NR(3)),    &
+!            V2(NR(1),NR(2),NR(3)),VP(Ntotal,Nstate),        &
+            V0(NS(1),NS(2),NS(3)),V1(NS(1),NS(2),NS(3)),    &
+            V2(NS(1),NS(2),NS(3)),VP(Ntotal,Nstate),        &
+            jkInd(NMAX(3)),jIndex(NMAX(3)),kIndex(NMAX(3)), &
+            P0(NState,NR(1),NR(2),NR(3)), stat=info)
+   allocW3 = (info==0)
+
+   if (allocW3) then   
+       allocate( VTh(NMax(3),NS(3)),  stat=info)
+       allocW3 = (info ==0)      
+   end if
+
+ end function
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c   Get the vector for each dimension, Called after R     c
+!c   are initialize, such as after myInitR()               c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   logical function getVW3()    
+
+      logical :: getPISTV_index, getDVRV_Sinc2, getConV
+
+      getVW3 = getDVRV_Sinc2(fVlr,NR(1),myR1,NS(1),Vlr)
+
+      if (getVW3) then
+          getVW3 = getDVRV_Sinc2(fVBr,NR(2),myR2,NS(2),VBr)
+
+          if (getVW3) then
+              getVW3 = getPISTV_index(fVP,ntotal,nstate,NsInd,VP)
+
+              if (getVW3) then
+                 if (NS(3)/=NMax(3)) getVW3 = getConV(fVTh,NMax(3),NS(3),VTh)
+                 if (.NOT.getVW3) write(*,100) fVTh
+              else
+                 write(*,100) fVP
+              end if
+          else
+              write(*,100) fVBR
+          end if
+      else
+          write(*,100) fVlr
+      end if
+   
+      100 format(' Error in getting data from file:', A)
+   end function
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+
+
+

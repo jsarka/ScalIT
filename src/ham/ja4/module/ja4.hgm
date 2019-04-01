@@ -1,0 +1,217 @@
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c           Calculate matrix elements for angular part              c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calSaveHGm()
+   double precision :: ct1, ct2 
+
+   call CPU_Time(ct1)
+
+   if (nDVR(4)>jkNum) nDVR(4)=0
+
+   print *
+   print *, ' Calculating H0GM ................ '
+   print *, ' Save HGm in Binary file:', fH0GM
+
+   select case (nDVR(4))
+   case (:-1)
+       print *, ' Do not do further calculation for H0GM'
+       if (CBFlag/=CBNONE) print *, ' Contracted data size:', rNum
+       print *
+ 
+   case (0)
+       print *, ' Calculating H0GM and Save in Grid Order .........'
+       print *, ' H0GM are stored in H0GM(ndvr(1),ndvr(2),ndvr(3),jkNum,jkNum)'
+       print *, ' It can be used directly in OSB'
+       write(*,10) ndvr(1),ndvr(2),ndvr(3),jkNum,jkNum
+       print *, ' Storing all HGM in memory and write one time: Large memory'
+
+       call calSaveHGMOrg()
+
+   case (1)
+       print *, ' Calculating H0GM and Save in Sequence Order .........'
+       print *, ' H0GM are stored in H0GM(jknum,jknum,ndvr(1),ndvr(2),ndvr(3))'
+       print *, ' It should be further compacted befored used in OSB'
+       write(*,10)jknum,jknum,ndvr(1),ndvr(2),ndvr(3)
+       print *, ' Storing HGM data one be one: less memory,mutiple writing'
+
+       call calSaveHGMOrgSeq() 
+
+   case (2)   
+       print *, ' Calculating Contracted H0GM and Save in Sequence Order .........'
+       print *, ' H0GM are stored in H0GM(ndvr(4),ndvr(4),ndvr(1),ndvr(2),ndvr(3))'
+       print *, ' It should be further reordered before used in OSB'
+       write(*,10)ndvr(4),ndvr(4),ndvr(1),ndvr(2),ndvr(3)
+       print *, ' Storing HGM data one be one: less memory,mutiple writing'
+
+       call calSaveHGMReSeq()
+
+   case default                   
+       print *, ' Calculating H0 at compacted basis sets .........'
+       print *, ' Original basis size:', jkNum, ' x', jkNum
+       print *, ' Compacted basis size:', nDVR(4), ' x', nDVR(4)
+       print *, ' It can be used directly in OSB'
+       write(*,10) ndvr(1),ndvr(2),ndvr(3),ndvr(4),ndvr(4)
+       print *, ' Storing all HGM in memory and write one time: Large memory'
+
+       call calSaveHGMRe()
+
+   end select
+
+   call CPU_Time(ct2)
+   print *, ' CPU Time to Calculate and Save H0GM(s):', (ct2-ct1)
+   print *
+
+   10 FORMAT(' The data size:',I6, 4('x',I6))
+
+end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calSaveHGMOrg()
+   double precision, allocatable :: H0GM(:,:,:), H0(:,:)
+   integer :: i, info
+   integer(kind=8) :: cnt
+
+   allocate(H0GM(rNum,jknum,jknum), H0(jkNum,jkNum), stat=info)
+   if (info /= 0) then
+       print *, ' Error in allocating memory for H0GM';  return
+   end if
+   
+   cnt = 0; 
+   do i = 1, rNum
+      call calHGMi(rIndex(1,i),rIndex(2,i),rIndex(3,i), H0)
+      h0gm(i,1:jkNum,1:jkNum) =  H0(1:jkNum,1:jkNum)
+      cnt=cnt+1
+      if (cnt/50*50==cnt)   write(*, 100) rNum, cnt, 100.0*cnt/rNum
+   end do
+   
+   cnt = rNum*jkNum**2
+   call saveDataDir(cnt, H0GM, fH0GM)
+
+   deallocate(H0GM, H0)
+ 
+  100 format (' Total Count:', I10, 2x, 'Current Count:', I10, 2x,  &
+               ' Finished ratio (%):', F7.4)
+
+end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calSaveHGMOrgSeq()  
+   double precision,allocatable :: H0GM(:)
+
+   integer :: i,  info
+   integer(kind=8) :: cnt, num
+
+   allocate(H0GM(jkNum*jkNum), stat=cnt)
+   if (cnt /= 0) then
+      print *, ' Error in allocate Memory for H0GM'; return
+   end if 
+
+   inquire(IOLENGTH=num) H0Gm
+
+   open(99, FILE=fH0GM, status='Replace', form='UNFORMATTED', &
+        ACCESS='direct', RECL=num, IOSTAT=info)
+   if (info/=0) then
+      print *, ' Error in opening file:',fH0GM
+      deallocate(H0Gm); return
+   end if
+
+   cnt = 0; info=0
+   do i = 1, rNum
+      call calHGMi(rIndex(1,i),rIndex(2,i),rIndex(3,i), H0gm)
+      cnt = cnt + 1
+      write(99, rec=cnt) H0GM(1:jkNum*jkNum)
+      if (cnt/50*50==cnt) write(*, 100) rNum, cnt, 100.0*cnt/rNum
+   end do
+
+   close(99)
+
+   deallocate(H0GM)
+
+   100 format (' Total Count:', I10, 2x, 'Current Count:', I10, 2x,  &
+               ' Finished ratio (%):', F7.4)
+end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calSaveHGMRe()    
+   double precision, allocatable :: vmat(:,:), H0GM(:,:,:), H0(:,:) 
+   integer :: i, info
+   integer(kind=8) :: cnt
+
+   allocate(vmat(jkNum,ndvr(4)),H0GM(rNum, ndvr(4),  &
+            ndvr(4)), H0(ndvr(4),ndvr(4)), stat=info)
+   if (info /=0 ) then
+       print *, ' Error in allocate Memory for H0GM'; return
+   end if
+   
+   if (calSaveVmat(nDVR(4), vmat)) then
+      cnt=0
+      do i = 1, rNum
+         call calHGMiCon(rIndex(1,i),rIndex(2,i),rIndex(3,i), &
+                 ndvr(4), vmat, H0)
+         h0gm(i,1:ndvr(4),1:ndvr(4))=H0(1:ndvr(4),1:ndvr(4))
+         cnt = cnt + 1
+         if (cnt/1000==cnt) write(*, 100) rNum, cnt, 100.0*cnt/rNum
+       end do
+
+       cnt = rNum*ndvr(4)**2
+       call saveDataDir(cnt, H0GM, fH0GM)
+   else
+      print *, ' Error in calculate Vmat!'
+   end if
+
+   deallocate(vmat, H0GM, H0)
+ 
+   100 format (' Total Count:', I10, 2x, 'Current Count:', I10, 2x,  &
+               ' Finished ratio (%):', F7.4)
+
+end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calSaveHGMReSeq()
+   double precision, allocatable :: vmat(:,:), H0GM(:)
+   integer :: i, info 
+   integer(kind=8) :: cnt, num
+
+   allocate(vmat(jkNum,ndvr(4)),H0GM(ndvr(4)**2),stat=info)
+   if (info /= 0) then
+     print *, ' Error in allocate Memory for H0GM';   return
+   end if
+
+   inquire(IOLENGTH=num) H0Gm
+
+   if (calSaveVmat(nDVR(4), vmat)) then
+      open(99,FILE=fH0GM,status='Replace',form='UNFORMATTED', &
+           ACCESS='direct', RECL=num, IOSTAT=info)
+      if (info/=0) then
+          print *, ' Error in opening file:',fH0GM
+          deallocate(vmat,H0gm); return
+      end if
+      
+      cnt=0
+      do i = 1, rNum
+         cnt=cnt+1
+         call calHGMiCon(rIndex(1,i),rIndex(2,i),rIndex(3,i),ndvr(4),vmat,H0GM)
+         write(99,rec=info) H0GM(1:nDVR(4)**2)
+
+         if (cnt/50*50==cnt) write(*, 100) rNum, cnt, 100.0*cnt/rNum
+      end do
+      close(99)
+   else
+      print *, ' Error in calculate Vmat!'
+   end if
+
+   deallocate(vmat, H0GM)
+
+   100 format (' Total Count:', I10, 2x, 'Current Count:', I10, 2x,  &
+               ' Finished ratio (%):', F7.4)
+
+end subroutine 
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+

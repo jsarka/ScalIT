@@ -1,0 +1,122 @@
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c     Calculate the matrix elements at (i1, i2, i3)             c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calHGMi(i1, i2, i3, H0gm)
+    integer, intent(IN) :: i1, i2, i3
+    double precision, intent(OUT) :: H0gm(jkNum, jkNum)
+
+    call myHGM(lr1(i1),lr2(i2),BR(i3),momlr1(i1),momlr2(i2),momBR(i3), &
+                   vlr1(i1), vlr2(i2),vBR(i3), H0gm)
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!  Called by subroutine calSaveHGMRe() in ja4.hgm file.  This is the 
+!  subroutine called when jkNum is greater than NDVR(4). 
+!  
+!  In lamen terms, this subroutine is called when your angular ceiling
+!  value is larger than the number of actual angular values.
+!
+!  This is called multiple times, once for each rNum value
+!                              -Corey Petty
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calHGMiCon(i1, i2, i3, mNum, vmat, H0Gm)
+    integer, intent(IN) :: i1, i2, i3, mNum
+    double precision, intent(IN)  :: vmat(jkNum, mNum)
+    double precision, intent(OUT) :: H0gm(mNum, mNum)
+
+    double precision,allocatable :: H0(:,:)
+    integer :: info
+
+    allocate(H0(jkNum,jkNum),stat=info)
+    if (info/=0) then
+        print *, ' Error in allocating memory in getAllHGMCon subroutine!'
+       return
+    endif
+
+    call myHGM(lr1(i1),lr2(i2),BR(i3),momlr1(i1),momlr2(i2),momBR(i3), &
+                   vlr1(i1), vlr2(i2),vBR(i3), H0)
+
+    call VTHV(jkNum, mNum, h0, vmat, H0Gm)
+
+    deallocate(H0)
+
+end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine getAllHGM(H0gm)
+   double precision, intent(OUT) :: H0gm(NDVR(1),NDVR(2), NDVR(3),jKNum,jkNum)
+   
+   integer :: I, J, K, kk, info
+   double precision, allocatable :: hgm1(:,:)
+
+   allocate(hgm1(jkNum,jkNum),stat=info)
+   if (info/=0) then
+       print *, ' Error in allocating memory in getAllHGM subroutine!'
+       return
+   endif  
+
+   do kk = 1, rNum
+      i = rIndex(1,kk); j=rIndex(2,kk);  k=rIndex(3,kk)
+      call myHGM(lr1(i), lr2(J), BR(k), momlr1(i),momlr2(j),momBR(k),   &
+                      vlr1(i), vlr2(j), vBR(k),hgm1)
+      H0gm(I, J, K, 1:jkNum, 1:jkNum) = hgm1(1:jkNum, 1:jkNum)
+   end do
+
+!   DO K = 1, NDVR(3)
+!      DO J = 1, NDVR(2)
+!         DO I = 1, NDVR(1)
+!            call myHGM(lr1(i), lr2(J), BR(k), momlr1(i),momlr2(j),momBR(k),   &
+!                       vlr1(i), vlr2(j), vBR(k),hgm1)
+!            H0gm(I, J, K, 1:jkNum, 1:jkNum) = hgm1(1:jkNum, 1:jkNum)
+!         END DO
+!      END DO       
+!   END DO   
+
+   deallocate(hgm1)
+
+end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine getAllHGMCon(mNum, vmat, H0gm)
+   integer, intent(IN) :: mNum
+   double precision, intent(IN) :: vmat(jkNum, mNum)
+   double precision, intent(OUT) :: H0gm(NDVR(1),NDVR(2), NDVR(3), mNum, mNum)
+
+   integer :: I, J, K, kk, info
+   double precision, allocatable :: hgm1(:, :), hgm0(:, :)
+   
+   allocate(hgm1(jkNum, jkNum), hgm0(mNum, mNum), stat=info)
+   if (info/=0) then
+       print *, ' Error in allocating memory in getAllHGMCon subroutine!'
+       return
+   endif
+ 
+   do kk = 1, rNum
+     i = rIndex(1,kk); j=rIndex(2,kk);  k=rIndex(3,kk)
+     call myHGM(lr1(i), lr2(j), BR(k), momlr1(i),momlr2(j),momBR(k), &
+                      vlr1(i),vlr2(j),vBR(k),hgm1)
+     call VTHV(jkNum, mNum, hgm1, vmat, hgm0)
+     H0gm(I, J, K, 1:mNum, 1:mNum) = hgm0(1:mNum, 1:mNum)
+   end do
+
+!   DO K = 1, NDVR(3)
+!      DO J = 1, NDVR(2)
+!         DO I = 1, NDVR(1)
+!            call myHGM(lr1(i), lr2(j), BR(k), momlr1(i),momlr2(j),momBR(k), &
+!                        vlr1(i),vlr2(j),vBR(k),hgm1)
+!            call VTHV(jkNum, mNum, hgm1, vmat, hgm0)
+!            H0gm(I, J, K, 1:mNum, 1:mNum) = hgm0(1:mNum, 1:mNum)
+!         END DO
+!      END DO
+!   END DO
+
+   deallocate(hgm1,hgm0)  
+
+end subroutine 
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+

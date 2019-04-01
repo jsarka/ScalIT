@@ -1,0 +1,28 @@
+Creating PSODVR data for ScalIT:
+
+NOTE: This step is only required if you do not have analytical functions for the 1D optimized
+effective potentials in the pot_$(MOL).f90 file.  This equates to having the following flags set.
+
+1st Step (presinc module): useSP = T
+2nd Step (JA3 module)    : useSP = T
+
+In order for ScalIT to work, you must create data files that have the potential evaluated at a 
+number of points so that it may spline fit this into effective potentials.  This is done by 
+minimizing the potential with respect to a given set of coordinates, and adding that minimum to 
+an array.  
+
+We choose to use 3000 points for both here.  It is convenient to do 3001 points here, and then 
+delete the last entry when moving the file into the ScalIT directory.  Note, when editing the file, 
+the first line of the outputted data file should have the number of points on the very first line, 
+then data afterward.  Thus, the finalized datafile should look the example in the documentation 
+showing the file structure included in this documentation.
+	
+It is convenient in Mathematica to output in the comma separated value file format, and then edit 
+formally in Excel, then output again in Excel.  Further formatting includes setting the total 
+number of digits equal to 12 for both the length and effective potential value because Mathematica 
+seems to use a varying number of significant digits when outputting.  I am not sure if this is 
+necessary, but I know that it works.  Thus, each value will look like:
+	
+	0.1234567890 
+	
+when finalized in the complete data file.  

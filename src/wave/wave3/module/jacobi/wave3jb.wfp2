@@ -1,0 +1,57 @@
+!ccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c   Subroutines to calculate wave-function        c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccc   Calculate the wave function   cccccccccccccccccc
+subroutine calWFP2()
+   double precision :: pjm(p1NMax), vpjm(NMAX(3))
+   double precision :: cr, JBFactor,tmp   
+
+   integer :: i, j, k, II, cnt, nCnt
+   
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   cnt = 0;ncnt=NR(1)*NR(2)*NR(3)
+   do k = 1, NR(3)
+      cr = cos(myR3(k));  jbFactor=SIN(myR3(k))
+  
+      call AllYjmPolys(1,jmax, cr, pjm)
+
+      if (NMax(3)==NS(3)) then
+         do j = 1, NS(3)
+            v0(1:NS(1),1:NS(2),j) = pjm(jkInd(j))
+         end do
+      else
+         vpjm(1:NMax(3))=pjm(jkInd(1:NMax(3)))
+         do j = 1, NS(3)
+            v0(1:NS(1),1:NS(2),j)=dot_product(vpjm(1:nMax(3)),VTh(1:nMax(3),j))
+         end do
+      end if
+
+      do j=1,NR(2)
+         do i = 1, NS(2)
+            v1(1:NS(1), i, 1:NS(3)) =  VBr(i,j)*v0(1:NS(1), i, 1:NS(3)) 
+         end do
+
+         do i=1, NR(1)
+            do ii = 1, NS(1)
+               v2(ii,1:NS(2),1:NS(3)) =  vlr(ii,i)*v1(ii,1:NS(2),1:NS(3)) 
+            end do
+
+            do ii =1, Nstate
+               tmp=dot_product(VP(1:Ntotal,ii),reshape(V2,(/Ntotal/))) 
+               P0(1:ii,I,J,K)=JBFactor*tmp
+            end do
+
+            cnt = cnt + 1
+            if (cnt/SEG*SEG==cnt)  write(*, 10) cnt, 100.0D0*cnt/nCnt
+
+         end do
+       end do
+       P0(1:Nstate,1:NR(1),1:NR(2),K) = P0(1:Nstate,1:NR(1),1:NR(2),K)*JBFactor
+    end do
+
+    P0 = P0*FACTOR
+
+   10 FORMAT ('  k = ',I10, ' : The work done:', F9.4,'%.')
+end subroutine
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

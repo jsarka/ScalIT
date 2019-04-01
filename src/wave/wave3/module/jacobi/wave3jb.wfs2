@@ -1,0 +1,73 @@
+!ccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c   Subroutines to calculate wave-function        c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!ccccccccccccccccc   Calculate the wave function, K>0 cccccccccccccccccc
+subroutine calWFS2()
+   double precision :: pjm(p1NMax),vpjm(NMAX(3)),fpjm(NS(3)),pwf(NState)
+   double precision :: cr, tmp, JBFactor   
+
+   integer :: i, j, k, II, m0, cnt, nCnt
+   
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   cnt = 0; nCnt=NR(1)*NR(2)*NR(3)
+   do i = 1, NR(1)
+      do ii = 1, NS(1)
+         v0(ii,1:NS(2),1:NS(3))=vlr(ii,i) 
+      end do
+ 
+      do j = 1, NR(2)
+         do ii = 1, NS(2)
+            v1(1:NS(1),ii,1:NS(3))=v0(1:NS(1),ii,1:NS(3))*vBR(ii,j) 
+         end do        
+
+         do k = 1, NR(3)
+            cr = cos(myR3(k)); JBFactor=SIN(myR3(k))
+
+            call AllYjmPolys(1,jmax, cr, pjm)
+
+            pwf(1:NState)=0.0D0
+
+            do m0 = 0, mMax
+               do ii=1, NMax(3)
+                  if (kIndex(ii)==m0) then
+                     vpjm(ii)=pjm(jkInd(ii))
+                  else
+                     vpjm(ii)=0.0D0;
+                  end if
+               end do
+
+               if (NMax(3)==NS(3)) then
+                  fpjm(1:NS(3)) = vpjm(1:NS(3))
+               else
+                  do ii = 1, NS(3)
+                     fpjm(ii) = dot_product(vpjm(1:nMax(3)),VTh(1:nMax(3),ii))
+                  end do
+               end if
+
+               do ii = 1, NS(3)
+                  v2(1:NS(1),1:NS(2),ii)=v1(1:NS(1),1:NS(2),ii)*fpjm(ii) 
+               end do
+
+               do ii =1, Nstate
+                  tmp = dotSum(NTotal,VP(1:Ntotal,ii),v2) 
+                  pwf(ii)=pwf(ii)+tmp
+               end do
+
+             end do  ! end m0
+
+             P0(1:NState,I,J,K)= pwf(1:Nstate)*JBFactor
+
+             cnt = cnt + 1
+             if (cnt/SEG*SEG==cnt)  write(*, 10) cnt, 100.0D0*cnt/nCnt
+
+         end do  ! end k
+       end do  ! end j
+    end do
+
+    P0 = P0*FACTOR
+
+   10 FORMAT ('  k = ',I10, ' : The work done:', F9.4,'%.')
+end subroutine
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

@@ -1,0 +1,212 @@
+!ccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c       Calculate the PODVR for BR and lr         c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function calSaveH0()
+    double precision :: ct1, ct2
+    
+    calSaveH0 = .false.
+
+    call CPU_TIME(ct1)
+    print *
+    print *, '=============================='
+    print *, ' Calculating H0lr ............'
+    print *, '=============================='
+
+    if( calHlr() ) then
+       print *, ' DVR points for lr:'
+       print 999, lr
+       print *
+       print *, ' Eigenvalues for E0lr:'
+       print 1000, Elr
+    else
+       print *, ' Error in Calculating H0lr'
+       return
+    end if
+
+    print *
+    print *, '=============================='
+    print *, ' Calculating H0BR ............'
+    print *, '=============================='
+
+    if ( calHBr() )then
+       print *, ' DVR points for BR:'
+       print 999, BR
+       print *
+       print *, ' Eigenvalues for E0BR:'
+       print 1000, EBR
+    else
+       print *, ' Error in Calculating H0BR'
+       return
+    end if
+
+    print *, ' Save H0 in file:', fH0
+
+    select case (CBFlag)
+
+    case (CBNONE)
+        call saveH0CBNONE()
+
+    case (CBALL)
+        call saveH0CBALL()
+
+    case default
+        call saveH0CBNone()
+
+    end select
+
+    if ((absFlag==ABS_ONE) .OR. (absFlag==ABS_TWO))   &
+       call calSaveAP()
+
+    call CPU_Time(ct2)
+    print *, ' Total CPU Time to calculate H0(s):', ct2-ct1
+    print *, '===================================================='
+    print *
+
+    calSaveH0=.true.   
+
+  999 format (F20.15,2x,F20.15,2x,F20.15)
+ 1000 format (E25.15,2x,E25.15,2x,E25.15)
+
+end function
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function calSaveH0_NoOutput()
+    double precision :: ct1, ct2
+
+    calSaveH0_NoOutput = .false.
+
+    print *, 'flr:', fVRlr
+    if( .NOT. calHlr() ) return
+!    if( .NOT. calHBr() ) return
+!
+!    select case (CBFlag)
+!    case (CBNONE)
+!        call saveH0CBNONE()
+!
+!    case (CBALL)
+!        call saveH0CBALL()
+!
+!    case default
+!        call saveH0CBNone()
+!
+!    end select
+!
+!    if ((absFlag==ABS_ONE) .OR. (absFlag==ABS_TWO))   &
+!       call calSaveAP()
+!
+!    calSaveH0_NoOutput=.true.
+
+end function
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine saveH0CBNone()
+   integer :: i, j,  ind, pos, info, nSize
+   double precision, allocatable :: H0(:)
+
+   rNum=ndvr(1)*ndvr(2)
+
+   nSize=0;
+   if ( .NOT. fixLR)   nSize=nSize+ndvr(1)**2
+   if ( .NOT. fixBR)   nSize=nSize+ndvr(2)**2
+
+   if (nSize>0) then
+      allocate(rIndex(2,rNum), H0(nSize), stat=info)
+   else
+      allocate(rIndex(2,rNum), stat=info)
+   end if
+   if (info/=0) return
+
+   ind = 0
+   do i = 1, ndvr(2)
+      do j = 1, ndvr(1)
+         ind=ind+1;      rIndex(1,ind)=j 
+         rIndex(2,ind)=i
+      end do
+   end do
+
+   pos=1
+   if (nSize>0) then
+       if (.NOT. fixLR) then          
+          call CopyVec(ndvr(1)**2,Hlr,H0(pos))
+          pos=pos+ndvr(1)**2
+       end if
+
+       if (.NOT. fixBR) then
+          call CopyVec(ndvr(2)**2,HBR,H0(pos))         
+          pos=pos+ndvr(2)**2
+       end if
+
+       call saveData(nSize,H0,saveMode,fH0)
+   end if   
+
+   if (allocated(H0)) deallocate(H0)
+
+end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine saveH0CBALL()
+   integer :: i, j, ind, pos, info, nSize
+   double precision, allocatable :: H0(:,:)
+   double precision :: E0
+   
+   rNum = 0
+   do i = 1, ndvr(2)
+      do j = 1, ndvr(1)
+         E0 = Vlr(j)+VBR(i)
+         if (E0<=Ecutoff) rNum=rNum+1
+      end do
+   end do
+
+   nSize = rNum**2
+   allocate(rIndex(2,rNum), H0(rNum, rNum), stat=info)
+   if (info/=0) return           
+   ind = 0
+   do i = 1, ndvr(2)
+      do j = 1, ndvr(1)
+         E0 = Vlr(j)+VBR(i)
+         if (E0<=Ecutoff) then
+            ind=ind+1;        rIndex(1,ind)=j 
+            rIndex(2,ind)=i
+         end if
+      end do
+   end do 
+
+   H0(1:rNum, 1:rNum) = 0.0D0
+   do i = 1, rNum
+      do j = i+1, rNum
+         if ((rIndex(1,i)==rIndex(1,j)) )  &
+             H0(i,j) = H0(i,j)+HBr(rIndex(2,i),rIndex(2,j))
+
+          if ((rIndex(2,i)==rIndex(2,j)) ) &
+             H0(i,j) = H0(i,j)+Hlr(rIndex(1,i),rIndex(1,j))
+ 
+          H0(j, i) = H0(i,j) 
+ 
+       end do
+       H0(i,i)=Hlr(rIndex(1,i),rIndex(1,i))+HBR(rIndex(2,i),rIndex(2,i))  
+   end do
+
+   call saveData(nSize,H0,saveMode,fH0)
+   deallocate(H0)
+
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine copyVec(N, src, dst)
+   integer, intent(IN) :: N
+   double precision, intent(IN) :: src(N)
+   double precision, intent(OUT) :: dst(N)
+
+   dst(1:N) = src(1:N)
+
+end subroutine
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

@@ -1,0 +1,46 @@
+!
+! Define data used for ndpr module
+!
+double precision, parameter :: SQRT_1_2  =0.70710678118655D0 !sqrt(1/2)
+double precision, parameter :: SQRT_2_3  =0.81649658092773D0 !sqrt(2/3)
+double precision, parameter :: SQRT_4_3  =1.15470053837925D0 !sqrt(4/3)
+double precision, parameter :: SQRT_16_15=1.03279555898864D0 !sqrt(16/15)
+double precision, parameter :: SQRT_8_9  =0.94280904158206D0 !sqrt(8/9)
+
+
+integer, parameter :: FILELEN=128
+integer, parameter :: WSCALE=6
+double precision, parameter :: PI=3.1415926535897932D0
+
+integer :: lmax, nMax, BJMax
+double precision :: mass, rmin, rmax, ECut, BJTol
+
+!cccccccccccccccccccccccccccccccccccccccccc
+!c        # of DVR points at each l       c
+!cccccccccccccccccccccccccccccccccccccccccc
+integer :: nDVR, nRDvr
+integer, allocatable :: nSize(:), nTSize(:), nBase(:)
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccc
+!c       original DVR points and H matrix        c
+!ccccccccccccccccccccccccccccccccccccccccccccccccc
+double precision, allocatable :: X0(:), H0(:,:)  
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c  parameters for Gauss-Legendre and Gauss-Chebyshev integration  c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+integer :: pjmNum, nGL, nGC
+double precision, allocatable :: wLege(:),pjmLege(:,:),pjmChev(:,:)
+
+!ccccccccccccccccccccccccccccccccccccccccccccccc
+!c  parameters for spline function for V(r)    c
+!ccccccccccccccccccccccccccccccccccccccccccccccc
+logical :: useSP = .TRUE.
+integer :: spNum
+double precision, allocatable :: spR(:), spV(:),spM(:)
+double precision :: spyp1, spyp2
+
+logical :: saveMode, diagMode
+integer :: djMax
+character(LEN=FILELEN) :: inFile, xFile, HFile, tmpFile
+

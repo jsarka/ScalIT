@@ -1,0 +1,121 @@
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c                Define data used for tetra-atomic molecules                c
+!c    For n atomic molecules, there ara 3n degree of freedom, among which    c
+!c    there are 3 parameters for translation, 3 for rotation, 3(n-2) for     c
+!c    vibration. Generally, there are (n-1) vectors (removing 1 vectors for  c
+!c    translation), the number of radial parameters is (n-1), and 2(n-1)-3   c
+!c    for the angles (removing 3 angles for total molecular rotation)        c
+!c    For tetra-atomic molecules, n=4, n-1=3 for radials, 2(n-1)-3=3 for     c
+!c    angles. The configuration is : lr1, lr2, BR. Normally, DVR points for  c
+!c    BR are more those for lr1, lr2, and is arrayed as outmost-next layer   c
+!c    The outmost layer is for the angles, which the VBRs are used.          c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc 
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c  Parameters for Coordinator Combination:
+!c    CBNONE: no combination, (r1,r2,R,Angle) 
+!c    CBAll:  ([R,r1,r2])
+!c    CBR1R2: r1-r2,   (R, [r1,r2])
+!c    CBRR1:  R-r1,    (r2,[R,r1])   
+!c    CBRR2:  R-r2     (r1,[R,r2])
+!c  Parameters to fix one or more radials
+!c    FCNone: (r1, r2, R)    FCAll:(r1e,r2e,Re)     FCR: (r1, r2, Re) 
+!c    FCR1:  (r1e, r2,R)     FCR2:(r1,r2e,R)
+!c    FCR1R2:(r1e,r2e,R)     FCRR1:(r1e,r2,Re)      FCRR2:(r1,r2e,Re)
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+integer, parameter :: CBNONE=0, CBALL=4, CBR1R2=1, CBBRR1=2, CBBRR2=3
+
+integer, parameter :: FCNONE=0, FCALL=7, FCR1R2=1, FCBRR1=2, FCBRR2=3,  &
+                      FCBR=4,   FCR1=5,  FCR2=6
+
+integer, parameter :: ABS_NONE=0, ABS_ONE=1, ABS_TWO=2
+
+integer, parameter :: TAG_IND=1000, TAG_DATA=1002
+integer, parameter :: STEP=100
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+integer, parameter :: FILENAMELEN=128
+integer, parameter :: STDFH  = 5         ! file handle for standard IO
+integer, parameter :: NATOM  = 4        
+integer, parameter :: NR     = 3         ! NATOM-1      
+integer, parameter :: NA     = 3         ! NATOM+NATOM-5
+double precision, parameter :: PI    = 3.1415926535897932D0
+double precision, parameter :: SQRT2 = 1.41421356237310D0 
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+integer :: JTol    
+logical :: parity  
+
+integer :: jmax(NA)             ! [j1max,j2max,jmax]
+integer :: nGI(NA)              ! # of integral points, (theta1, theta2, phi)
+integer :: NDVR(NR+1)           ! # of DVR pts
+double precision :: Mass(NR), RE(NR)   ! mass, equilibrium value
+
+integer :: FcFlag, CbFlag, ReFlag, absFlag       
+double precision :: Ecutoff
+character(LEN=FILENAMELEN) :: fH0, fH0GM
+character(LEN=FILENAMELEN) :: fVRlr1, fVRlr2, fVRBr, fRe
+
+logical :: useSP 
+character(LEN=FILENAMELEN)  :: fSpVRBR, fSpVRlr1, fSpVRlr2
+
+!cccccccccccccccc Parameters for absorption potential  cccccccccccc
+character(LEN=FILENAMELEN)  :: fABS
+! parameters for AP
+!
+
+
+!*********************** Aux. Parameters  ******************************
+logical, parameter :: saveMode=.TRUE., vcutFlag=.TRUE.
+
+!************************ Parameters for DVR points  ********************
+double precision, allocatable :: lr1(:),    lr2(:),    BR(:)     ! DVR points 
+double precision, allocatable :: Elr1(:),   Elr2(:),   EBr(:)    ! DVR energies
+double precision, allocatable :: momlr1(:), momlr2(:), momBR(:)  ! momentum 
+double precision, allocatable :: vlr1(:),   vlr2(:),   vBR(:)    ! 1D potential
+double precision, allocatable :: Hlr1(:,:), Hlr2(:,:), HBR(:,:)
+
+!****************** Parameters related to coordinator combination ******
+integer :: rNum
+integer, allocatable :: rIndex(:,:)
+logical :: fixR1, fixR2, fixBR
+
+!********* parameters for Gauss-Quadrature integeration ****************
+integer :: mMax                 ! max of |m-m'| = 2j1+1
+
+double precision, allocatable :: wth1(:), wth2(:)           ! weights
+double precision, allocatable :: xth1(:), xth2(:), xphi(:)  ! angles 
+double precision, allocatable :: cth1(:), cth2(:), cphi(:)  ! cos(angles)
+double precision, allocatable :: sth1(:), sth2(:), sphi(:)  ! sin(angles)
+
+double precision, allocatable :: Tm(:,:)                    ! Chebshev Polys
+double precision, allocatable :: Vmm(:,:,:)                 ! Vmm
+
+!**** parameters to store Associate Legendre polynomials**************
+integer :: p1NMax, p2NMax                   ! # of Pjm
+
+double precision, allocatable :: pjm1(:,:)  ! Pjm(theta1):NGI(1)*p1NMax
+double precision, allocatable :: wpj1(:,:)
+double precision, allocatable :: pjm2(:,:)  ! Pjm(theta2):NGI(2)*p2NMax
+double precision, allocatable :: wpj2(:,:)
+
+!********* parameters for CG coefficient  *****************************
+integer :: jkNum                             ! total # of (j1j2jK)
+integer :: mmNum                             ! total # of (j1j2jKm)
+
+integer, allocatable :: jkInd(:,:)           ! index of (j1j2jK) 
+integer, allocatable :: jkSize(:),jkBase(:)  ! size & base address for (j1j2jK)
+integer, allocatable :: kmInd(:)             ! index of m for (j1j2jK) 
+double precision, allocatable :: cgCoeff(:)  ![mmnum],CG coefficients
+
+
+!********* used for spline function **********************************
+integer :: spNum(NR)
+
+double precision :: spyp1(NR)=3.0D36, spyp2(NR)=3.0D36
+double precision, allocatable :: splr1(:), spVlr1(:), spMlr1(:),          &
+            splr2(:), spVlr2(:), spMlr2(:), spBR(:),  spVBR(:),  spMBR(:)    
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+

@@ -1,0 +1,261 @@
+=======================================================================================
+=======================================================================================
+==  Changes since 2-2-2015 
+==    Performed by Corey Petty
+=======================================================================================
+=======================================================================================
+The following errors when compiling with gfortran-4.9.2.1 were caught and fixed.  Earlier
+versions of gfortran and ifort ignored them.
+
+1.) ScalIT/src/libdosb/ham/index/index_3j0.f90:296.41:
+    
+         logical function Reorder3j() was being incorrectly called as a subroutine,
+             and was fixed.  
+
+2.) ScalIT/src/libmosb/p_iterate/pist/pistf_mpi.f90:146.42:
+
+       MPI_File_Write_At() has an extra comma, which was taken out.
+
+3.) osb.progPX.h:96.16:
+
+       logical funcion saveData() was being called as a subroutine in multiple files, 
+             and was changed.  Error checking was also implemented.
+             
+4.) mosb.io.h:62.32:
+    
+       logical function loadData() was incorrectly called as a subroutine, which was 
+             corrected.  
+
+=======================================================================================
+The following warnings when compiling with gfortran-4.9.2.1 were caught and fixed.
+Earlier versions of gfortran and ifort ignored them.
+
+1.) ScalIT/src/libosb/obase/util.f90:782.16:
+
+     maxErr   = getMax(N, err, ind) 
+                1
+	Warning: More actual than formal arguments in procedure call at (1)
+	
+	-------------------------------------------------------------------------------
+	SOLUTION: use the getMax0 function instead to include indice
+	
+2.) ScalIT/src/libosb/obase/util.f90:814.14:
+
+        val = getMinAbove(N, absVec, val, ind(I))
+              1
+	Warning: More actual than formal arguments in procedure call at (1)
+
+	-------------------------------------------------------------------------------	
+	SOLUTION: use the getMinAbove0 function instead to include indice
+	
+3.) ScalIT/src/libosb/obase/util_cx.f90:351.21:
+
+    call getOpCX(N, err, opErr) 
+                     1
+	Warning: Type mismatch in argument 'n' at (1); passed COMPLEX(8) to INTEGER(4)
+	
+	-------------------------------------------------------------------------------
+	SOLUTION: The subroutine testConv_CX is not used anywhere in the 
+	          code so I added the nType variable into the arguments to mimic the 
+	          way the getOpCX subroutine is called by all other subroutines in 
+	          the util_cx.f90 file.  If testConv_CX is ever used, then make sure
+	          the global variable nType is known.
+	
+4.) ScalIT/src/libdosb/ham/dvr/mmt.f90:153.21:
+
+    call VDVT(N, N, D, VCx, BCx) 
+                     1
+	Warning: Type mismatch in argument 'v' at (1); passed COMPLEX(8) to REAL(8)
+	
+	-------------------------------------------------------------------------------
+	SOLUTION: This is clearly the Complex version, and should call its complex
+	          counterpart.  I changed the following
+	          
+	          call VDVT(N, N, D, VCx, BCx) 
+	               --> call VDVTCx(N, N, D, VCx, BCx)
+	
+5.) ScalIT/src/libdosb/ham/dvr/mtm.f90:153.21:
+
+    call VTDV(N, N, D, VCx, BCx) 
+                     1
+	Warning: Type mismatch in argument 'v' at (1); passed COMPLEX(8) to REAL(8)
+	
+	-------------------------------------------------------------------------------
+	SOLUTION: Solved when 4.) was solved.
+	          
+7.) ScalIT/src/libdosb/ham/poly/chev.f90:38.22:
+
+    call ChevPolys(1,N,x,chev)
+                      1
+	Warning: Rank mismatch in argument 'x' at (1) (rank-1 and scalar)
+	-------------------------------------------------------------------------------
+	SOLUTION: ChevPoly, the subroutine that calls this subroutine incorrectly, is 
+	          simply the special case of the subroutine ChevPolys with N0=1.  
+	          ChevPolys wants a rank-1, so the following change was made in the
+	          ChevPoly subroutine:
+	          
+	          double precision, intent(IN)  :: x 
+	               --> double precision, intent(IN)  :: x(1)
+	               
+8.) ScalIT/src/libdosb/ham/poly/lagu.f90:38.22:
+
+    call laguPolys(1,N,x,lagu)
+                      1
+	Warning: Rank mismatch in argument 'x' at (1) (rank-1 and scalar)
+	
+	-------------------------------------------------------------------------------
+	SOLUTION: The equivalent fix as 7.) for the Laguerre polynomials. 
+	
+9.) ScalIT/src/libdosb/ham/poly/pj.f90:39.20:
+	
+    call PjPolys(1,L,x,pj)
+                    1
+	Warning: Rank mismatch in argument 'x' at (1) (rank-1 and scalar)
+	
+	-------------------------------------------------------------------------------
+	SOLUTION: The equivalent fix as 7.) for the Legendre Polynomials
+	
+10.) ScalIT/src/libdosb/ham/poly/pjm.f90:53.26:
+
+     call PjmPolys(1,jmax,m,x,pjm)
+                          1
+	 Warning: Rank mismatch in argument 'x' at (1) (rank-1 and scalar)
+	
+	 -------------------------------------------------------------------------------
+	 SOLUTION: The equivalent fix as 7.) for the Associated Legendre Polys
+	
+11.) ScalIT/src/libdosb/ham/poly/pjm.f90:81.27:
+
+     call AllPjmPolys(1,jmax,x,pjm)
+                           1
+	 Warning: Rank mismatch in argument 'x' at (1) (rank-1 and scalar)
+	
+	 -------------------------------------------------------------------------------
+	 SOLUTION: Same as 7.)
+	
+12.) ScalIT/src/libdosb/ham/poly/yj.f90:49.20:
+
+     call yjPolys(1,L,x,yj)
+                    1
+	 Warning: Rank mismatch in argument 'x' at (1) (rank-1 and scalar)
+	 -------------------------------------------------------------------------------
+	 SOLUTION: Same as 7.)
+	
+13.) ScalIT/src/libdosb/ham/poly/yjm.f90:57.26:
+
+     call YjmPolys(1,jmax,m,x,yjm)
+                          1
+	 Warning: Rank mismatch in argument 'x' at (1) (rank-1 and scalar)
+	 -------------------------------------------------------------------------------
+	 SOLUTION: Same as 7.)
+
+14.) ScalIT/src/libdosb/ham/poly/yjm.f90:85.27:
+
+     call AllYjmPolys(1,jmax,x,yjm)
+                           1
+     Warning: Rank mismatch in argument 'x' at (1) (rank-1 and scalar)
+	 -------------------------------------------------------------------------------
+	 SOLUTION: Same as 7.) 
+
+15.) ScalIT/src/libmosb/p_iterate/util/vindex.f90:22.37:
+
+     call getViColIndex(sF,sN,gDim,col,blkInd,snInd)
+                                     1
+	 Warning: Rank mismatch in argument 'blkind' at (1) (rank-1 and scalar)
+     
+     -------------------------------------------------------------------------------
+     SOLUTION: Same as 7.)
+     
+16.) mja3.io:31.13:
+     Included at ScalIT/src/hamiltonians/mja3.f90:25:
+
+     dbData(6)=Rabs1(1); dbData(7)=Rabs1(2)
+            1
+	 Warning: Array reference at (1) is out of bounds (6 > 5) in dimension 1
+     -------------------------------------------------------------------------------
+     SOLUTION: The variable nDbl was changed from 5 to 7 to make the array dbData
+               large enough to avoid boundary issues.  It seems the absorbtion
+               potentials were not getting set properly because of this, which
+               should be fixed now.  
+
+17.) mja3.io:31.33:
+     Included at ScalIT/src/hamiltonians/mja3.f90:25:
+
+     dbData(6)=Rabs1(1); dbData(7)=Rabs1(2)
+                                1
+	 Warning: Array reference at (1) is out of bounds (7 > 5) in dimension 1
+     -------------------------------------------------------------------------------
+     SOLUTION: 16.) fixed this.
+     
+18.) mja3.io:37.19:
+     Included at ScalIT/src/hamiltonians/mja3.f90:25:
+
+     Rabs1(1)=dbData(6);  Rabs1(2)=dbData(7)
+                     1
+	 Warning: Array reference at (1) is out of bounds (6 > 5) in dimension 1
+     -------------------------------------------------------------------------------
+     SOLUTION: 16.) fixed this.
+     
+19.) mja3.io:37.40:
+     Included at ScalIT/src/hamiltonians/mja3.f90:25:
+
+     Rabs1(1)=dbData(6);  Rabs1(2)=dbData(7)
+                                          1
+	 Warning: Array reference at (1) is out of bounds (7 > 5) in dimension 1
+     -------------------------------------------------------------------------------
+     SOLUTION: 16.) fixed this.
+
+=======================================================================================
+The following codes were changed for timing routines and quality of life
+changes:
+
+1.) ScalIT/include/mosbp.progEig.h
+
+    added line 31:    call printConvInfo()
+
+    INFO: This subroutine call prints convergence parameters given in input file for
+    the iterate, m_iterate, and p_iterate executables.
+
+2.) ScalIT/include/posb.io.h
+
+    added line  7:    double precision :: t1, t2
+    added line 12:       t1 = MPI_WTime()
+    added line 59:    if (id==rootID) then
+    added line 60:       t2=MPI_WTime()
+    added line 61:       write(*,*) "-------------------------------------------------"
+    added line 62:       write(*,*) "  Time for loading all data (s): ", t2-t1
+    added line 63:       write(*,*) "-------------------------------------------------"
+    added line 64:    end if
+
+    INFO: Loading data timing was added.  As the matrices get larger, this
+    becomes a substantial part of the runtime, so timing was needed.
+
+3.) ScalIT/include/mosb.progDiag.h
+
+    added line 32:         ct1 = MPI_WTime()
+    added line 41:         ct2 = MPI_WTIME()
+    added line 42:         print *
+    added line 43:         print *, '---------------------------------------------------------------------'
+    added line 44:         print *, '      MPI WTime for HOSB Diagonization(sec):',ct2-ct1
+    added line 45:         print *, '---------------------------------------------------------------------'
+
+    INFO: Added timing for HOSB Diagonalization.
+
+=======================================================================================
+The following files were added into the ScalIT/src/index/ directory which
+properly index tetra-atomic files at different symmetry groups (Written by Dr.
+Bill Poirier):
+    - index_ABCD.f90
+    - index_A2B2_Agg.f90
+    - index_A2B2_Auu.f90
+    - index_A2B2_Agu.f90
+    - index_A2B2_Aug.f90
+
+The previous tetra-atomoic versions are vestigial, and should not be
+referenced when creating 4 atom systems
+
+=======================================================================================
+=======================================================================================
+==     END OF CHANGES 2-2-2015 
+=======================================================================================
+=======================================================================================

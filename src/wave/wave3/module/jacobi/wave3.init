@@ -1,0 +1,117 @@
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c    Subroutines to initialize wave3a module          c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c  Use default method to initialize lr, Br, and theta c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function initW3()
+
+   print *
+   print *, ' Read Input Parameters from Std I/O .......'
+   print *
+
+   call readW3()
+   initW3 = allocW3() 
+
+   if (initW3) then
+      call myInit()
+      initW3 = getVW3()
+
+      if ( .NOT. initW3 )    &
+         print *, ' Error in getting vectors from the files!'
+   else
+      print *, ' Error in Allocating Memory!'
+   end if
+
+end function
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c    Initialize the R value for each dimension          c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   subroutine myInit()
+      double precision :: dr   
+      integer :: ind, i, getPjmPos
+
+      ind = 1
+      dr = (RanMax(ind)-RanMin(ind))/NR(ind)
+      do i = 1, NR(ind)
+         myR1(I) = RanMin(ind)+i*dr
+      end do
+
+      ind = 2
+      dr = (RanMax(ind)-RanMin(ind))/NR(ind)
+      do i = 1, NR(ind)
+         myR2(I) = RanMin(ind)+i*dr
+      end do
+
+      ind = 3
+      dr = (RanMax(ind)-RanMin(ind))/NR(ind)
+      do i = 1, NR(ind)
+         myR3(I) = RanMin(ind)+i*dr
+      end do
+
+      call get3Index(parity, JTol, Jmax, NMax(3), jIndex, kIndex)
+      do i = 1, Nmax(3)
+         jkInd(i)=getPjmPos(Jmax,jIndex(i),kIndex(i))
+      end do
+
+   end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c    Initialize the R value for each dimension          c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   subroutine finalW3()
+      if (allocated(Vlr))   deallocate(Vlr)
+      if (allocated(VBR))   deallocate(VBR)
+      if (allocated(VTh))   deallocate(VTh)
+      if (allocated(VP))    deallocate(VP)
+
+      if (allocated(V0))    deallocate(V0)
+      if (allocated(V1))    deallocate(V1)
+      if (allocated(V2))    deallocate(V2)
+
+      if (allocated(myR1))   deallocate(myR1)
+      if (allocated(myR2))   deallocate(myR2)
+      if (allocated(myR3))   deallocate(myR3)
+
+      if (allocated(jIndex)) deallocate(jIndex)
+      if (allocated(kIndex)) deallocate(kIndex)
+      if (allocated(jkInd))  deallocate(jkInd)
+
+      if (allocated(P0))    deallocate(P0)
+
+   end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   double precision function dotSum(N, Vec1, Vec2)
+      integer, intent(IN) :: N
+      double precision, intent(IN) :: Vec1(N), Vec2(N)
+
+      dotSum = dot_product(Vec1,Vec2)
+
+   end function
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c   Calculate the d coefficient between Jacobi and          c
+!c   hyper-spherical coordinators. It is (4/3)^(1/4) for A3  c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   double precision function getDCoeff()
+      double precision :: sumMass, tmp
+     
+      sumMass = Mass(1)+Mass(2)+Mass(3)
+
+      tmp = DSQRT(Mass(1)*Mass(2)*Mass(3)/sumMass)
+
+      getDCoeff = DSQRT(Mass(1)/tmp*(1.0D0-Mass(1)/sumMass))  
+
+   end function
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

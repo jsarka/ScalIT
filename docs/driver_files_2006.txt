@@ -1,0 +1,209 @@
+These are the missing driver files that are being incorporated back into ScalIT.  
+
+a "---" before the file name signifies it has been transfered.
+
+NOTE:  anything that is included in the old version of ScalIT not in the current ScalIT
+       that is not a driver file (*.drv.*) will be put into a folder labeled "unknown."
+       This will include the old makefiles so the user can known what the dependencies
+       are for making the drivers
+
+---  ./dosb/coeff/cg.drv.f90
+---  ./dosb/coeff/cjg.drv.f90
+---  ./dosb/coeff/gaunt.drv.f90
+---  ./dosb/coeff/threej.drv.f90
+---  ./dosb/dvr/dvr1.drv.f90
+---  ./dosb/dvr/dvr2.drv.f90
+---  ./dosb/dvr/exp.drv.f90
+---  ./dosb/dvr/gauss.drv.f90
+---  ./dosb/dvr/gausscx.drv.f90
+---  ./dosb/dvr/lagu.drv.f90
+---  ./dosb/dvr/mm.drv.f90
+---  ./dosb/dvr/sinc1.drv.f90
+---  ./dosb/dvr/sinc2.drv.f90
+---  ./dosb/func/powell.drv.f90
+---  ./dosb/func/simple.drv.f90
+---  ./dosb/func/simplex.drv.f90
+---  ./dosb/func/simplex.drv2.f90
+---  ./dosb/func/simplex1.drv.f90
+---  ./dosb/index/cf.drv.f90
+---  ./dosb/index/cg.drv.f90 
+---  ./dosb/index/cg0.drv.f90
+---  ./dosb/index/gaunt.drv.f90
+---  ./dosb/index/getm3.drv.f90
+---  ./dosb/index/jm1.drv.f90
+---  ./dosb/index/jm2.drv.f90
+---  ./dosb/index/m1d.drv.f90
+---  ./dosb/index/m3a.drv.f90
+---  ./dosb/index/m4a.drv.f90
+---  ./dosb/index/m4ak.drv.f90
+---  ./dosb/index/nlm.drv.f90
+---  ./dosb/index/node.drv.f90
+---  ./dosb/index/nodeLen.drv.f90
+---  ./dosb/index/pjm.drv.f90 
+---  ./dosb/index/threej0.drv.f90
+---  ./dosb/integral/gauAssLagu.drv.f90
+---  ./dosb/integral/gauChev.drv.f90
+---  ./dosb/integral/gauHerm.drv.f90
+---  ./dosb/integral/gauJacb.drv.f90
+---  ./dosb/integral/gauLagu.drv.f90
+---  ./dosb/integral/gauLege.drv.f90 
+---  ./dosb/ndpr/fmk.drv.f90
+---  ./dosb/ndpr/fmkInt.drv.f90
+---  ./dosb/ndpr/ndp_BR.drv.f90
+---  ./dosb/ndpr/ndp_lr.drv.f90
+---  ./dosb/ndpr/ndprconv.drv.f90
+---  ./dosb/ndpr/r3h0.drv.f90
+---  ./dosb/ndpr/res3.drv.f90
+---  ./dosb/ndpr/theta.drv.f90
+---  ./dosb/poly/chev.drv.f90
+---  ./dosb/poly/gauLege.drv.f90
+---  ./dosb/poly/lagu.drv.f90
+---  ./dosb/poly/pj.drv.f90
+---  ./dosb/poly/pjm.drv.f90
+---  ./dosb/poly/pyjm.drv.f90
+---  ./dosb/poly/trigo.drv.f90
+---  ./dosb/poly/yj.drv.f90
+---  ./dosb/poly/yjm.drv.f90
+---  ./dosb/util/diffData.drv.f90
+---  ./dosb/util/pist.drv.f90
+---  ./dosb/util/presinc.drv.f90
+---  ./dosb/util/printData.drv.f90
+---  ./dosb/util/showData.drv.f90
+---  ./dosb/wave3/hsjb.drv.f90
+---  ./dosb/wave3/jbexch.drv.f90
+---  ./dosb/wave3/jbwf.drv.f90
+---  ./dosb/wave3/wave3hs.drv.f90
+---  ./dosb/wave3/wave3jb.drv.f90
+---  ./mbase/node.drv.f90
+---  ./mbase/nodeLen.drv.f90
+---  ./mbase/vector_cx_mpi.drv.f90
+---  ./mbase/vector_mpi.drv.f90
+---  ./mio/mio.drv.f90
+---  ./mio/mio_diag.drv.f90
+---  ./mio/mio_dist.drv.f90
+---  ./mio/mio_grid.drv.f90
+---  ./mio/nio_diag.drv.f90
+---  ./mio/nio_grid.drv.f90
+---  ./mio/nio_seq.drv.f90
+---  ./mosb/lanczos/lan_dx_mpi.drv.f90
+---  ./mosb/lanczos/lan_mpi.drv.f90
+---  ./mosb/mtype/mosbtype/mosbtype.drv.f90
+---  ./mosb/mtype/mt_data.drv.f90
+---  ./mosb/mtype/mt_dep.drv.f90
+---  ./mosb/mtype/mt_hosb.drv.f90
+---  ./mosb/mtype/mt_node.drv.f90
+---  ./mosb/mtype/mt_print.drv.f90
+---  ./mosb/mtype/mt_res.drv.f90
+---  ./mosb/mtype/mt_seq.drv.f90
+---  ./mosb/mtype/mt_vosb.drv.f90
+---  ./mosb/orth/gsorth_cx_mpi.drv.f90
+---  ./mosb/orth/gsorth_mpi.drv.f90
+---  ./mosb/orth/gsorth_sx_mpi.drv.f90
+---  ./mosb/pist/pist_cx_mpi.drv.f90
+---  ./mosb/pist/pist_dx_mpi.drv.f90
+---  ./mosb/pist/pist_mpi.drv.f90
+---  ./mosb/pist/pist_sx_mpi.drv.f90
+---  ./mosb/pistgs/pist_cx_mpi.drv.f90
+---  ./mosb/pistgs/pist_dx_mpi.drv.f90
+---  ./mosb/pistgs/pist_mpi.drv.f90
+---  ./mosb/pistgs/pist_sx_mpi.drv.f90
+---  ./mosb/prog/mosb.drv.f90
+---  ./mosb/prog/mosb1.drv.f90
+---  ./mosb/prog/mosb1.drv.o
+---  ./mosb/prog/mtanEig.drv.f90
+---  ./mosb/prog/mtanHij.drv.f90
+---  ./mosb/prog/mtanHX.drv.f90
+---  ./mosb/prog/mtanPX.drv.f90
+---  ./mosb/prog/mtest.drv.f90
+---  ./mosb/prog/posb.drv.f90
+---  ./mosb/prog/ptest.drv.f90
+---  ./mosb/qmr/qmr_mpi.drv.f90
+---  ./mosb/qmr/qmrcx_mpi.drv.f90
+---  ./mosb/util/gars.drv.f90
+---  ./mosb/util/getga.drv.f90
+---  ./mosb/util/getindex.drv.f90
+---  ./mosb/util/getmind.drv.f90
+---  ./mosb/util/getpos.drv.f90
+---  ./mosb/util/getsdrv.drv.f90
+---  ./mosb/util/getsimpos.drv.f90
+---  ./mosb/util/getssimpos.drv.f90
+---  ./mosb/util/initga.drv.f90
+---  ./mosb/util/mvindex.drv.f90
+---  ./mosb/util/mvxindex.drv.f90
+---  ./mosb/util/seqdata.drv.f90
+---  ./mosb/util/vindex.drv.f90
+---  ./obase/mm.drv.f90
+---  ./obase/util.drv.f90
+---  ./obase/util_cx.drv.f90
+---  ./osb/lanczos/lan.drv.f90
+---  ./osb/lanczos/lan_dx.drv.f90
+---  ./osb/orth/gsorth.drv.f90
+---  ./osb/orth/gsorth_cx.drv.f90
+---  ./osb/orth/gsorth_sx.drv.f90
+---  ./osb/pist/pist.drv.f90
+---  ./osb/pist/pist_cx.drv.f90
+---  ./osb/pist/pist_dx.drv.f90
+---  ./osb/prog/osb.drv.f90
+---  ./osb/qmr/qmr.drv.f90
+---  ./osb/qmr/qmrcx.drv.f90
+./pes/acetyl/fitv.drv.f90
+./pes/ap/ap.drv1.f90
+./pes/ap/ap.drv2.f90
+./pes/ar2ne/pot.drv.f90
+./pes/arco/pot.drv.f90
+./pes/c2h2/tmp/hdvr.drv.f90
+./pes/c2h2/tmp/pso.drv.f90
+./pes/eck1d/eck1D.drv.f90
+./pes/h3/lsth.drv.f90
+./pes/hcn/hcn.drv.f90
+./pes/hcn/hcn.drv1.f90
+./pes/hcn/pes0.drv.f90
+./pes/hcn/pes1.drv.f90
+./pes/hcn/pes2.drv.f90
+./pes/hcn/pes3.drv.f90
+./pes/hco/fit.drv.f90
+./pes/hco/hco.drv.f90
+./pes/hco/ja3.drv.f90
+./pes/hco/pot.drv.f90
+./pes/hco/psoBr.drv.f90
+./pes/hco/psolr.drv.f90
+./pes/he3/scapes.drv.f90
+./pes/hosc/hosc.drv.f90
+./pes/ja3/cja3.drv.f90
+./pes/ja3/fitv.drv.f90
+./pes/ja3/fitv.drv.o
+./pes/ja3/ja3.drv.f90
+./pes/ja3/ja3.drv.o
+./pes/ja3/mja3.drv.f90
+./pes/ja3/mja3.drv.o
+./pes/ja3/pja3.drv.f90
+./pes/ja3/pja3.drv.o
+./pes/ja3/pot.drv.f90
+./pes/ja3/pot.drv.o
+./pes/ja3/psoBr.drv.f90
+./pes/ja3/psoBr.drv.o
+./pes/ja3/psolr.drv.f90
+./pes/ja3/psolr.drv.o
+./pes/ja4/cja4.drv.f90
+./pes/ja4/fitv.drv.f90
+./pes/ja4/fitv.drv.o
+./pes/ja4/hre.drv.f90
+./pes/ja4/ja4.drv.f90
+./pes/ja4/ja4.drv.o
+./pes/ja4/mja4.drv.f90
+./pes/ja4/mja4.drv.o
+./pes/ja4/pja4.drv.f90
+./pes/ja4/pja4.drv.o
+./pes/ja4/pot.drv.f90
+./pes/ja4/pot.drv.o
+./pes/ja4/psoBr.drv.f90
+./pes/ja4/psoBr.drv.o
+./pes/ja4/psolr1.drv.f90
+./pes/ja4/psolr1.drv.o
+./pes/ja4/psolr2.drv.f90
+./pes/ja4/psolr2.drv.o
+./pes/ne2ar/pot.drv.f90
+./pes/vinyl/fitv.drv.f90
+./pes/vinyl/vinyl.drv.f90
+./pes/wave4/wave4jb.drv.f90
+./pes/wave4/wave4jb.drv.o

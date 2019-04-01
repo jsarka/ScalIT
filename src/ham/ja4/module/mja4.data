@@ -1,0 +1,16 @@
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c           Data for MPI subroutines                  c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccc 
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccc 
+   integer :: rootID = 0
+
+   integer :: dbSize
+
+   integer :: myid, nproc, ierr
+
+   integer :: workID(2) 
+              ! 0: calculate H0,1:calculate H0Re
+
+   double precision, allocatable :: REVmat(:)
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccc 
+

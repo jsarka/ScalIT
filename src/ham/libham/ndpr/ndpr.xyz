@@ -1,0 +1,216 @@
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c     Calculate X and H using non-direct-product DVR     c
+!c      in Cartesian coordinator (X, Y, Z)                c
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function getXH_XYZ(X1, H1)
+   double precision, intent(OUT) :: X1(3,nDVR), H1(nDVR, nDVR)
+ 
+   double precision, allocatable :: Vmat(:, :), ER0(:), DH0(:),  & 
+                 xMat(:,:,:), rMat(:, :), VR(:, :)
+   integer :: jmkIn(4,nDVR)
+   integer :: i1, i2, j1, j2, nj1, nj2, m1, m2, k1, k2
+   integer :: ind1, ind2, info
+   double precision :: sfmk,cfmk, sTh, cTh, rij
+   integer :: BJDiag
+
+!ccccccccccccccccccccccccccccccccccccccccccccc
+   getXH_XYZ = .false.
+   allocate( Vmat(nMax, nRDVR), ER0(nRDVR), DH0(nDVR),    & 
+             xMat(3, nDVR, nDVR),rMat(nRDVR, nRDVR),      &
+             VR(nDVR, nDVR), stat=info )
+   if (info/=0) return
+
+   if (.NOT. getVT(nSize, vmat, ER0)) then
+      print *, ' Error in get Eigenvectors for (H+J)'
+      deallocate(Vmat,ER0,DH0,xMat,rMat,VR)
+      return
+   end if
+
+   call getRMat(vMat, rMat)
+   call getCFIndex(lmax, nSize, nDVR, jmkIn)
+
+   print *, 'Energy:', ER0
+
+   do i1 = 1, nDVR
+
+     j1 = jmkIn(1, i1); nj1=jmkIn(2, i1)
+     m1 = jmkIn(3, i1); k1 =jmkIn(4, i1)
+
+     ind1 = getRPos(lmax, nSize, j1, nj1)
+     DH0(i1) = ER0(ind1)
+
+     do i2 = 1, nDVR
+
+        j2 = jmkIn(1,i2); nj2=jmkIn(2,i2)
+        m2 = jmkIn(3,i2); k2 =jmkIn(4,i2)
+ 
+        ind2 = getRPos(lmax, nSize, j2, nj2)
+
+        call getFmk(m1,k1, m2, k2, sfmk, cfmk)
+        call getTheta(j1,m1, j2, m2, sTh, cTh)
+
+        rij  = Rmat(ind1, ind2)
+
+        Xmat(1,i1,i2) = rij*sTH*cFmk
+        Xmat(2,i1,i2) = rij*sTH*sFmk
+
+        if ((m1==m2) .AND. (k1==k2)) then
+           Xmat(3,i1,i2) = rij*cTH
+        else
+	   Xmat(3, i1, i2) = 0.0D0
+        end if    
+
+     end do
+   end do
+
+   print *, ' Perform Block-Jacobi Diagonization'
+   if (BJDiag(BJMax, BJTol, 3, nDVR, xMat, VR, X1)> 0) then
+      print *, ' Create H matrix'
+      do i1 = 1, nDVR
+         do i2 = 1, i1
+            H1(i1,i2) = SUM(VR(1:nDVR,i1)*DH0(1:nDVR)*VR(1:nDVR,i2))
+            H1(i2,i1) = H1(i1, i2) 
+         end do
+      end do
+   else
+      print *, ' Error in Simutaneously Block Jacobi Diag.!'
+   end if
+
+   deallocate(Vmat,ER0,DH0,xMat,rMat,VR) 
+
+   getXH_XYZ = .TRUE.
+
+end function
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c     Calculate V and H0 using non-direct-product DVR    c
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function getVT(cfSize, Vmat, ER0)
+    integer, intent(IN) :: cfSize(lmax+1)
+    double precision, intent(OUT) :: Vmat(nMax,nRDvr), ER0(nRDVR)
+    
+    double precision, allocatable :: hmat(:,:),work(:),dhMat(:)
+    integer :: j, i, lwork, info, addr, k1, k2
+    double precision :: tmp
+    
+    lwork = WSCALE*nMax;      getVT = .false.
+    allocate(hmat(nmax,nmax),work(WSCALE*nMax),dhMat(nMax),stat=info)
+    if (info/=0) return
+
+    addr = 1
+    do j=0, lmax
+      if (cfSize(j+1) == 0) EXIT
+      hMat(1:nMax,1:nMax) = H0(1:nMax, 1:nMax)
+      do i=1, nMax
+         hMat(i,i) = Hmat(i,i) + 0.5D0*j*(j+1)/(Mass*X0(i)*X0(i))
+       end do
+
+       call DSYEV('V', 'U', nMax, hMat, nMax, DHMAT, work, lwork, info)
+       if (info /= 0) return
+
+       ER0(addr:addr+cfSize(j+1)-1)=DHMAT(1:cfSize(j+1))
+
+       Vmat(1:nMax,addr:addr+cfSize(j+1)-1) = hMat(1:nMax,1:cfSize(j+1))
+       addr = addr + cfSize(j+1)
+    end do
+
+    deallocate(hmat,work,dhmat)
+    getVT = .TRUE.
+
+end function
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c     Calculate V and H0 using non-direct-product DVR    c
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine getRMat(Vmat, RMat)
+     double precision, intent(IN) :: Vmat(nMax, nRDVR)
+     double precision, intent(OUT):: RMat(nRDVR, nRDVR)
+
+     integer :: i1, i2
+
+     do i1 = 1, nRDVR 
+        do i2 = 1, i1
+	  RMat(i1,i2) = Sum(Vmat(1:nMax, i1)*X0(1:nMax)*Vmat(1:nMax, i2))
+          RMat(i2,i1) = RMat(i1, i2)
+        end do
+     end do
+ 
+end subroutine
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c         Calculate <F|sin(a).cos(a)|F>                        c
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine getFmk(m1, k1, m2, k2, sfmk, cfmk)
+   integer, intent(IN) :: m1, k1, m2, k2
+   double precision, intent(OUT) :: sfmk, cfmk
+
+   cfmk = 0.0D0; sfmk = 0.0D0
+   if (k1/=k2) then
+      if ((m2+1) == m1) sfmk = sfmk + k1 
+      if ((m1+1) == m2) sfmk = sfmk + k2
+      if ((m1+m2) == 1) sfmk = sfmk - 1.0D0
+      sfmk = -0.5D0*sfmk
+      if (m1==0) sfmk = SQRT_1_2*sfmk
+      if (m2==0) sfmk = SQRT_1_2*sfmk
+   else
+      if ((m2+1) == m1) cfmk = cfmk + 1.0D0
+      if ((m1+1) == m2) cfmk = cfmk + 1.0D0
+      if ((m1+m2) == 1) cfmk = cfmk + k1
+      cfmk = 0.5D0*cfmk
+      if (m1==0) cfmk = SQRT_1_2*cfmk
+      if (m2==0) cfmk = SQRT_1_2*cfmk
+   end if
+
+end subroutine
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c         Calculate <P(jm)|sin(a).cos(a)|P(j'm')>              c
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine getTheta(j1, m1, j2, m2, sTh, cTh)
+   integer, intent(IN) :: j1,m1,j2,m2
+   double precision, intent(OUT) :: sTh, cTh
+
+   integer :: m12, ind1, ind2, ind0, ind
+   integer :: getPjmPos
+
+   m12  = m1 + m2
+   ind1 = getPjmPos(lmax, j1, m1)  
+   ind2 = getPjmPos(lmax, j2, m2)
+
+   !print *, 'Pjm:',pjmChev, pjmLege
+
+   if (m12/2*2 == m12) then
+       ind0 = getPjmPos(lmax, 2, 2)
+       sth = SUM(pjmChev(1:nGC,ind1)*pjmChev(1:nGC,ind0)*pjmChev(1:nGC,ind2))
+       sth = sth * SQRT_16_15*PI/NGC
+       ind0 = getPjmPos(lmax,1, 0)
+       cth = SUM(wLege(1:nGL)*pjmLege(1:nGL,ind1)*pjmLege(1:nGL,ind0)       &
+                 *pjmLege(1:nGL,ind2))
+       cth = cth * SQRT_2_3
+   else
+       ind0 = getPjmPos(lmax,1, 1)
+       ind  = getPjmPos(lmax, 1, 0)
+       cth = SUM(pjmChev(1:nGC,ind1)*pjmChev(1:nGC,ind0)*pjmChev(1:nGC,ind) &
+                *pjmChev(1:nGC,ind2))
+       cth = -cth * SQRT_8_9*PI/NGC
+       ind0 = getPjmPos(lmax,1, 1)
+       sth = SUM(wLege(1:nGL)*pjmLege(1:nGL,ind1)*pjmLege(1:nGL,ind0)    &
+                 *pjmLege(1:nGL,ind2))
+       sth = -sth * SQRT_4_3
+   end if 
+
+end subroutine
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+integer function getRPos(jmax, jS, j1, nj1)
+   integer, intent(IN) :: jmax, jS(jmax+1),j1, nj1
+
+   getRPos = Sum(jS(1:j1+1))
+
+   getRPos = getRPos - jS(j1+1) + nj1
+
+end function
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

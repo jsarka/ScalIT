@@ -1,0 +1,85 @@
+!ccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c   Subroutines to calculate wave-function        c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!ccccccccccccccccc   Calculate the wave function: K>0  cccccccccccccccccc
+subroutine calWFM1(m0)
+   integer, intent(IN) :: m0
+   double precision :: pjm(p1NMax), vpjm(NMax(3))
+   double precision :: Rlr(NS(1)), RBR(NS(2)), RTH(NS(3))
+
+   double precision :: dBR, dlr, BR0, lr0, cth0
+   double precision :: coeff, jbFactor, tmp
+   integer :: i, j, k, k0, cnt, nCnt
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   coeff = getDCoeff(); cnt=0; ncnt=NR(1)*NR(2)*NR(3)
+   dlr = (lrMax-lrMin)/NMax(1);     dBR = (BRMax-BRMin)/NMax(2)
+ 
+   do i = 1, NR(1)   ! myR1(:)=rho,myR2(:)=X; myR3(:)=Y
+      do j = 1, NR(2) 
+         do k = 1, NR(3)
+             
+            call xy2jb(myR1(i),myR2(j),myR3(k),BR0,lr0,cth0,JBFactor)
+
+            BR0=BR0/coeff;    lr0=lr0*coeff
+ 
+            k0 = (lr0-lrMin)/dlr+1
+            if (k0<1) k0=1
+            if (k0>NMax(1)) k0=NMax(1)
+            Rlr(1:NS(1)) = Vlr(k0,1:NS(1))
+
+            k0 = (BR0-BRMin)/dBR+1
+            if (k0<1)  k0=1
+            if (k0>NMax(2)) k0=NMax(2)
+            RBR(1:NS(2)) = VBR(k0,1:NS(2))
+
+            call AllYjmPolys(1, jmax, cth0, pjm)
+
+            do k0 = 1, NS(1)
+               v0(k0,1:NS(2),1:NS(3)) = Rlr(k0)
+            end do
+
+            do k0 = 1, NS(2)
+               v0(1:NS(1),k0,1:NS(3)) = v0(1:NS(1),k0,1:NS(3))*RBr(k0)
+            end do
+
+            do k0 = 1, Nmax(3)
+               if (kIndex(k0)==m0) then
+                  vpjm(k0) = pjm(jkInd(k0))
+               else
+                  vpjm(k0) = 0.0D0 
+               end if
+            end do
+
+            if (Nmax(3)==NS(3)) then
+               RTh(1:nMax(3))=vpjm(1:NMax(3))
+            else
+               do k0 = 1, NS(3)
+                  RTh(k0) = dot_product(vpjm(1:NMax(3)),VTh(1:NMax(3),k0))
+               end do
+            end if
+
+            do k0 = 1, NS(3)
+               v1(1:NS(1),1:NS(2),k0) = v0(1:NS(1),1:NS(2),k0)*RTh(k0)
+            end do
+
+            do k0 =1, Nstate
+	       tmp = dotSum(NTotal, VP(1:Ntotal,k0),v1)
+               P0(k0,I,J,K) = JBFactor*tmp**2 
+            end do
+
+            cnt = cnt + 1
+            if (cnt/SEG*SEG==cnt)  write(*, 10) cnt, 100.0D0*cnt/nCnt
+
+         end do
+      end do
+   end do
+
+   P0 = FACTOR*P0
+
+   10 FORMAT ('  Count: i=',I10, ' :  The work done:',F9.4,'%.')
+
+end subroutine
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

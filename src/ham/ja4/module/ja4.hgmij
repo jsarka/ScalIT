@@ -1,0 +1,204 @@
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c      The main subroutine to calculate the matrix elements        c
+!c     This version needs more memory, but 2~3 times faster         c
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine  myHGM(r01,r02,BR0,mr01,mr02,mBR0,vr01,vr02,vBR0,H0)
+    double precision, intent(IN) :: r01,r02,BR0,mr01,mr02
+    double precision, intent(IN) :: mBR0,vr01,vr02,vBR0
+    double precision, intent(OUT):: H0(jkNum, jkNum)
+
+    integer :: i0, j0  
+    integer :: j1, j2, j, k, j1p,j2p, jp, kp
+    integer :: mind1, mind2, maddr1, maddr2, m1, m2, m3, dm, sm
+    integer :: psum, m_11, m_12, m_21, m_22
+    integer :: ind_11, ind_12, ind_21, ind_22
+    double precision :: tmp, tmp1   
+
+    double precision, allocatable :: spvm(:,:,:,:)  !spvm(NGI(2),p1NMax,p1NMax)
+
+    allocate(spvm(NGI(2), mMax, p1NMax, p1NMax))
+
+    !TVG: null time for Corey benchmark is 15.006 s
+
+    !TVG: timing region Vmm
+    ! The next line takes 11.64 ms for Corey benchmark
+    call calVmm(r01, r02, BR0)
+
+    !TVG: Timing region Vmm2 includes this loop
+    ! It takes 472.84 s for Corey benchmark
+    do i0=1,p1NMax
+       do j0 = 1, p1NMax
+           do k =1, mMax 
+              do j = 1, NGI(2)
+                spvm(j,k,j0,i0) = sum(wpj1(1:NGI(1),j0)*Vmm(1:nGI(1),j,k)  &
+                                      * pjm1(1:nGI(1),i0)) 
+              end do
+           end do
+       end do
+    end do
+
+    ! set kinetic part and potential part
+    !TVG: Timing region TV (kinetic and potential)
+    ! Total time for this region is 5382.58 s
+
+    H0(1:jkNum,1:jkNum)=0.0D0 
+   
+    do i0 = 1, jkNum
+
+      j1 = jkInd(1,i0); j2 = jkInd(2,i0)
+      j  = jkInd(3,i0); k  = jkInd(4,i0)
+
+      do j0 = i0, jkNum
+         kp = jkInd(4, j0)
+           
+                 ! Filling Kinetic part: T-V1-V2-V3
+         !TVG: This section takes 4.05 s
+         KINETIC: if ((j1==jkInd(1,j0)) .AND. (j2==jkInd(2,j0))             &
+                      .AND. (j==jkInd(3,j0))) then    
+             if (k == kp) then
+                H0(i0,j0) =  mBR0*(JTol*(JTol+1)+j*(j+1)-2*k*k)            &
+                            + mr01*j1*(j1+1)+mr02*j2*(j2+1)                 &
+                            - vr01 - vr02 - vBR0
+             else
+                if ((k+1)==kp) then
+                   H0(i0,j0) = -sqrt((JTol*(JTol+1.0D0)-k*(k+1.0D0))*       &
+                                    (j   *(j   +1.0D0)-k*(k+1.0D0)))*mBR0
+                   if (k==0)   H0(i0,j0) = SQRT2 * H0(i0,j0)  
+                else
+                   if ((k-1)==kp) then
+                      H0(i0,j0) = -sqrt((JTol*(JTol+1.0D0)-k*(k-1.0D0))*    &
+                                    (j   *(j   +1.0D0)-k*(k-1.0D0)))*mBR0
+                      if (k==1)   H0(i0,j0) = SQRT2 * H0(i0,j0)
+                   end if                
+                 end if
+             end if  
+
+         end if KINETIC
+
+                      ! Fill Potential part
+         ! TVG: This section takes 5487.09 s
+         POTENTIAL : if ( k == kp ) then
+
+             j1p = jkInd(1,j0); j2p = jkInd(2,j0); jp = jkInd(3,j0)          
+             tmp = 0.0D0; 
+
+             do mind1 = 0, jkSize(i0)-1
+                do mind2 = 0, jkSize(j0)-1  
+
+                   maddr1 = jkBase(i0)+mind1
+                   maddr2 = jkBase(j0)+mind2
+
+                   m1 = kmInd(maddr1); m2 = kmInd(maddr2)
+                   dm = abs(m1-m2); 
+
+                   m_11 = abs(m1);   m_12 = abs(m2)
+                   m_21 = abs(k-m1); m_22 = abs(k-m2)  
+                   sM = m_11 + m_12 + m_21 + m_22
+                   
+                   if (sm/2*2 == sm) then
+                      psum = 0; 
+                      if (m1<0)      psum = psum + m_11
+                      if (m2<0)      psum = psum + m_12
+                      if ((k-m1)<0)  psum = psum + m_21
+                      if ((k-m2)<0)  psum = psum + m_22
+                    
+                      tmp1 = 0.0D0
+
+                      ind_11 = (m_11+1)*(2*jmax(1)+2-m_11)/2-(jmax(1)-j1)
+                      ind_12 = (m_12+1)*(2*jmax(1)+2-m_12)/2-(jmax(1)-j1p)
+                      ind_21 = (m_21+1)*(2*jmax(2)+2-m_21)/2-(jmax(2)-j2)
+                      ind_22 = (m_22+1)*(2*jmax(2)+2-m_22)/2-(jmax(2)-j2p) 
+
+                      tmp1 = sum(wpj2(1:NGI(2),ind_21)*pjm2(1:NGI(2),ind_22)*  &
+                                spvm(1:NGI(2),dm+1,ind_11,ind_12))
+                      tmp1 =  cgCoeff(maddr1)*cgCoeff(maddr2)*tmp1 
+
+                      if (psum/2*2 == psum) then
+                          tmp = tmp + tmp1
+                      else
+                          tmp = tmp - tmp1
+                      end if  
+                   end if
+                end do
+             end do                
+
+             H0(i0, j0) = H0(i0, j0) + tmp 
+
+          end if  POTENTIAL
+          
+       end do
+    end do
+   
+    do i0 = 1, jkNum
+       do j0 = i0, jkNum
+          H0(j0, i0) = H0(i0, j0)
+       end do
+    end do
+
+    deallocate(spvm)
+
+end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c                       Calculate Vmm(r1, r2, R0)                   c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+! In this subroutine, the user could provide a optimized subroutine  c
+! to calculate the potential, fot it is the bottleneck               c
+! calculate V[(r1, r2, R), 1:nphi, 1:nth1, 1:nth2]                   c
+! Caution: The order of V is V(NGI(3), NGI(1), NGI(2))               c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calVmm(r1, r2, R0)
+    double precision, intent(IN) :: r1, r2, R0
+
+    double precision :: v0(NGI(3), NGI(1), NGI(2))
+    integer :: i1, i2, i3
+
+    call potJA4(R0, r1, r2, NGI(1), NGI(2), NGI(3), xth1, xth2, xphi, v0) !  &
+              ! cth1, cth2, cphi, sth1, sth2, sphi,  V0)
+
+    !calculate Vmm[1:nth1, 1:nth2, 1:mMax]
+    do i1 = 1, mMax
+       do i2 = 1, NGI(2)
+          do i3 = 1, NGI(1)
+             Vmm(i3,i2,i1) = sum(Tm(1:NGI(3),i1)*v0(1:NGI(3), i3, i2))
+          end do
+       end do
+    end do
+    Vmm(:,:,:) = Vmm(:,:,:)/NGI(3)
+
+end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!        Non Efficient way to do the calculation.
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine calVmmNon(r1, r2, R0)
+    double precision, intent(IN) :: r1, r2, R0
+
+    double precision :: v0(NGI(3), NGI(1), NGI(2))
+    integer :: i1, i2, i3
+    double precision :: potja4Non
+
+    do i2 = 1, NGI(2)
+       do i3 = 1, NGI(1)
+          do i1 = 1, NGI(3)
+             v0(i1,i3, i2) = potJA4Non(R0,r1,r2,xth1(i3),xth2(i2),xphi(i1))
+          end do
+       end do
+    end do
+
+    !calculate Vmm[1:nth1, 1:nth2, 1:mMax]
+    do i1 = 1, mMax
+       do i2 = 1, NGI(2)
+          do i3 = 1, NGI(1)
+             Vmm(i3,i2,i1) = sum(Tm(1:NGI(3),i1)*v0(1:NGI(3), i3, i2))
+          end do
+       end do
+    end do
+    Vmm(:,:,:) = Vmm(:,:,:)/NGI(3)
+
+end subroutine
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+

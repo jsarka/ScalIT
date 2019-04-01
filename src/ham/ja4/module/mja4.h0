@@ -1,0 +1,131 @@
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine MCalSaveH0()  
+   double precision :: wt1,wt2,wt3,wt4,wt5,wt6
+
+   wt1 = MPI_WTime()
+
+   if (myid==workID(1)) then
+       print *, ' Calculate H0:H0lr1,H0lr2,H0BR at node', myid
+       if (.NOT. calSaveH0())  then
+          print *, ' Error in calculating and Saving H0!'
+       else
+          print *, ' Total number of indices for radial:', rNum
+       end if
+   end if
+
+   !print *, 'nDVR(4)=',ndvr(4),' jkNum=',jkNum,' at id=',myid
+   if ((nDVR(4)>1) .AND. (nDVR(4)<jkNum)) then
+      allocate(REVmat(jkNum*nDVR(4)))
+
+      if (myid==workID(1)) then
+         wt3 = MPI_WTime()
+
+         print *, ' Calculate/Save or Load H0RE at node ', myid
+         if (.NOT. calSaveVmat(nDVR(4),ReVmat))   &
+            print *, ' Error in calculation/Loading H0RE! '
+
+         wt4 = MPI_WTime()
+         print *, ' MPI Time to compute ReVmat:    ',wt4-wt3
+         print *
+
+      end if
+      wt5 = MPI_WTime()
+      call MPI_BCAST(REVMat, jkNum*nDVR(4), MPI_DOUBLE_PRECISION,  &
+                     workID(1),MPI_COMM_WORLD, ierr)
+      wt6 = MPI_WTime()
+      if (myid==rootID) print *, ' MPI Time to bcast ReVmat:    ',wt6-wt5
+
+   end if
+
+   call MPI_BCAST(rNum, 1, MPI_INTEGER, workID(1),MPI_COMM_WORLD, ierr)
+   if (myid/=workID(1))   allocate(rIndex(3,rNum))
+   call MPI_BCAST(rIndex,3*rNum,MPI_INTEGER,workID(1),MPI_COMM_WORLD,ierr)
+
+   call distributeR_VR()
+  
+   wt2 = MPI_WTime()
+   if (myid==rootID) print *, ' MPI Time to calculate and save H0/H0Re:',wt2-wt1
+
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine MCalSaveHGM()
+   double precision :: wt1,wt2
+
+   wt1 = MPI_WTime()
+   
+   if (nDVR(4)>jkNum) nDVR(4)=0
+
+   if (myid==rootID) print *
+   
+   select case (nDVR(4))
+   case (:-1)
+      if (myid==rootID) print *, ' Do not do further calculation for H0GM'
+
+   case (0)
+       if (myid==rootID) then
+          print *, ' Calculating H0GM and Save in Grid Order .........'
+          print *, ' H0GM are stored in H0GM(ndvr(1),ndvr(2),ndvr(3),', &
+                   ' jkNum, jkNum)'
+          print *, ' H0GM can be used in OSB directly.'
+          write(*,10) ndvr(1),ndvr(2),ndvr(3),jkNum,jkNum
+          print *, ' Storing all HGM in memory and write one time:Large memory'
+          print *
+       end if
+
+       call MCalSaveHgmOrg()
+
+   case (1)
+       if (myid==rootID) then
+           print *, ' Calculate H0GM and Save in Sequence Order .....'
+           print *, ' H0GM are stored in H0GM(jknum,jknum,ndvr(1),',    &
+                       ' ndvr(2),ndvr(3))'
+           print *, ' It should be further compacted befored used in OSB'
+           write(*,10)jknum,jknum,ndvr(1),ndvr(2),ndvr(3)
+           print *, ' Storing HGM data one be one: less memory,mutiple writing'
+           print *
+       end if
+
+       call MCalSaveHgmOrgSeq()
+
+   case (2)   
+       if (myid==rootID) then
+          print *, ' Calculate/Save Contracted H0GM in Sequence Order...'
+          print *, ' H0GM are stored in H0GM(ndvr(4),ndvr(4),ndvr(1),', &
+                   ' ndvr(2),ndvr(3))'
+          print *, ' It should be further reordered before used in OSB'
+          write(*,10)ndvr(4),ndvr(4),ndvr(1),ndvr(2),ndvr(3)
+          print *, ' Store HGM one be one: less memory,mutiple writing'
+          print *
+       end if
+  
+       call MCalSaveHgmReSeq()
+         
+   case default
+       if (myid==rootID) then
+          print *, ' Calculating H0 at compacted basis sets .........'
+          print *, ' H0GM are stored in H0GM(ndvr(1),ndvr(2),ndvr(3),', &
+                   'ndvr(4)),ndvr(4)'
+          print *, ' Original basis size:', jkNum, ' x', jkNum
+          print *, ' Compacted basis size:', nDVR(4), ' x', nDVR(4)
+          print *, ' It can be used directly in OSB'
+          write(*,10) ndvr(1),ndvr(2),ndvr(3),ndvr(4),ndvr(4)
+          print *, ' H0GM can be used in OSB directly!'
+          print *
+        end if
+ 
+       call MCalSaveHgmRe()
+
+   end select
+
+   wt2 = MPI_WTime()
+
+   if (myid==rootID)           &
+       print *, ' MPI Time to calculate and save H0GM:',wt2-wt1
+
+   10 FORMAT(' The data size:',I6, 4('x',I6))
+
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

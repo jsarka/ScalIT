@@ -1,0 +1,233 @@
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine getLocIndex(gLen, nnodes, locLen, locStart)
+   integer, intent(IN) :: gLen, nnodes
+   integer, intent(OUT) :: locLen(nnodes),locStart(nnodes)
+   integer :: mylen, myoff, i
+  
+   mylen=glen/nnodes; myoff=glen-mylen*nnodes
+
+   do i = 1, nnodes
+      if (i<=myoff) then
+          loclen(i)=mylen+1
+      else
+          locLen(i)=mylen
+      end if
+   end do
+
+   locStart(1)=1;
+   do i = 1, nnodes-1
+      locStart(i+1)=locStart(i)+locLen(i)
+   end do   
+
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine MCalSaveHGMOrg()  
+   double precision, allocatable :: H0GM(:,:,:), h0gm0(:,:)
+   integer :: i, ind, j, k
+   integer :: mystart, myend, mylen, info
+   integer :: locDim(nproc), locStart(nproc)
+   double precision :: wtp1, wtp2, wtp3
+
+   if (myid==rootID) then
+       print *, 'pja3.hgm is used!'
+       print *
+   end if
+
+   if (nproc==1) then
+      call calSaveHGmOrg();    
+      return
+   endif
+
+   call getLocIndex(rNum, nProc, locDim, locStart)
+ 
+   mylen=locDim(myid+1); mystart=locStart(myid+1); 
+   myend=mystart+mylen-1
+
+   do k = 0, nproc-1
+     if (myID==k) then
+
+       print *,'id=',myid, ' range of index:',mystart, myend
+
+     end if ! myID==k
+     call MPI_Barrier(MPI_COMM_WORLD, ierr)
+   end do
+
+   allocate(h0gm(mylen,jkNum,jkNum),h0gm0(jkNum,jkNum),stat=info)
+   if (info/=0) then
+       print *, ' Error in allocating memory in MCalSaveHgmOrg at id=',myid
+       return
+   endif
+
+   wtp1 = MPI_WTime()
+
+   ind=0
+   do i = mystart, myend
+        call calHGMi(rIndex(1,i), rIndex(2,i), H0GM0)
+        ind = ind + 1
+        H0GM(ind,1:jkNum,1:jkNum) = H0GM0(1:jkNum,1:jkNum)
+   end do
+
+   wtp2 = MPI_WTime()
+
+   if (myid==rootID) then
+       print * 
+       print *, ' MPI Time to calculate H0GM:',wtp2-wtp1
+   end if
+
+   ! collect the data
+   call PSaveDataGrid(myID,rootID,nproc,locDim,MPI_COMM_WORLD,fH0GM,mylen,jkNum,H0GM,ierr)
+
+   wtp3 = MPI_WTime()
+
+   if (myid==rootID) then
+       print *, ' MPI Time to store H0GM:    ',wtp3-wtp2
+       print *
+   end if
+
+   deallocate(H0GM,H0GM0)
+
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine MCalSaveHGMSeq()
+   double precision, allocatable :: H0GM(:)
+   integer :: offset, totalSize
+   integer :: info, i
+   integer :: mstat(MPI_STATUS_SIZE)
+   integer :: ind(2), ind1, curInd, recvInd, sendNode, wrInd
+
+   if (nproc==1) then
+      call calSaveHGmSeq();    
+      return
+   endif
+
+   totalSize=jkNum*jkNum
+   allocate(H0GM(totalSize),stat=info)
+   if (info/=0) then
+       print *, ' Error in memory allocation at node=', myid;   return
+   endif
+
+   if (myid==rootID) then
+      curInd=1; recvInd=1;
+      do i=1,nproc-1
+         call MPI_SEND(curInd,1,MPI_INTEGER,i,TAG_IND,MPI_COMM_WORLD,ierr)
+         if ((curInd>=rNum) .OR. (curInd<=0)) then
+            curInd=0; recvInd=recvInd+1
+         else
+            curInd=curInd+1
+         endif
+      end do
+
+      ! receive data
+      open(99,FILE=fh0gm,status='replace',access='direct',recl=dbSize*totalSize, &
+           form='unformatted',iostat=info)
+      do
+         call MPI_RECV(wrInd,1,MPI_INTEGER,MPI_ANY_SOURCE,TAG_IND,    &
+                       MPI_COMM_WORLD,mstat,ierr)
+         sendNode = mstat(MPI_SOURCE)
+         call MPI_Recv(h0gm,totalSize,MPI_DOUBLE_PRECISION,sendNode,  &
+                       TAG_DATA,MPI_COMM_WORLD,mstat,ierr)
+
+         call MPI_SEND(curInd,1, MPI_INTEGER, sendNode,TAG_IND, MPI_COMM_WORLD,ierr)
+
+         if ((curInd>=rNum) .OR. (curInd<=0)) then
+            curInd=0; recvInd=recvInd+1
+         else
+            curInd=curInd+1;
+         endif
+
+         if (curInd/STEP*STEP==curInd) write(*,100) rNum,curInd,100.0*curInd/rNum
+
+         write(99, rec=wrInd) h0gm
+
+         if (recvInd>nproc) then
+             close(99);  exit
+         end if
+
+      end do
+      
+   else   ! slave nodes
+      call MPI_Recv(ind1, 1, MPI_INTEGER, rootID, TAG_IND,    &
+                    MPI_COMM_WORLD, mstat, ierr)
+      do
+         if (ind1<=0) exit
+
+         call getMDIndex(2, nDVR, ind1, ind)
+         call calHGMi(ind(1), ind(2), H0GM)
+
+         call MPI_Send(ind1, 1, MPI_INTEGER, rootID, TAG_IND,       &
+                    MPI_COMM_WORLD, ierr)
+         call MPI_Send(h0gm, totalSize,MPI_DOUBLE_PRECISION,rootID, &
+                    TAG_DATA, MPI_COMM_WORLD, ierr)
+         call MPI_Recv(ind1, 1, MPI_INTEGER, rootID, TAG_IND, &
+                    MPI_COMM_WORLD, MPI_STATUS_IGNORE,ierr)
+      end do
+   end if
+
+   deallocate(h0gm)
+
+   100 format('Total work:',I12,' Current work:',I12,' Finished(%):',F10.5) 
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine MCalSaveHGMRe()
+   double precision, allocatable :: H0GM(:), H0GMC(:,:,:), H0GMC0(:,:)
+   integer :: i,ind
+   integer ::  mystart, myend, mylen, info
+   integer :: locDim(nproc), locStart(nproc)
+   double precision :: wtp1, wtp2, wtp3
+
+   if (myid==rootID) then
+       print *, 'pja3.hgm is used in compact mode!'
+       print *
+   end if
+
+   call getLocIndex(rNum, nProc, locDim, locStart)
+   
+   mylen=locDim(myid+1); mystart=locStart(myid+1);
+   myend=mystart+mylen-1
+   print *,'id=',myid, ' range of index:',mystart, myend
+
+   allocate(H0gm(jkNum**2),h0gmC(mylen,nDVR(3),nDVR(3)),h0gmc0(ndvr(3),ndvr(3)),stat=info)
+   if (info/=0) then
+       print *, ' Error in allocating memory in MCalSaveHgmOrg at id=',myid
+       return
+   endif
+
+   wtp1 = MPI_WTime()
+
+   ind=0
+   do i = mystart, myend
+        call calHGMi(rIndex(1,i), rIndex(2,i), H0GM)
+        call VTHV(jkNum, ndvr(3), h0GM, REvmat, H0GMC0)
+        ind = ind + 1
+        H0GMC(ind,1:ndvr(3),1:ndvr(3))=H0GMC0(1:ndvr(3),1:ndvr(3))
+   end do
+
+   wtp2 = MPI_WTime()
+
+   if (myid==rootID) then
+       print *
+       print *, ' MPI Time to calculate H0GM:',wtp2-wtp1
+   end if
+
+   ! collect the data
+   call PSaveDataGrid(myID,rootID,nproc,locDim,MPI_COMM_WORLD,fH0GM,mylen,nDVR(3),H0GMC,ierr)
+
+   wtp3 = MPI_WTime()
+
+   if (myid==rootID) then
+       print *, ' MPI Time to store H0GM:    ',wtp3-wtp2
+       print *
+   end if
+
+   deallocate(H0GM, H0GMC, H0GMC0)
+   
+end subroutine
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+

@@ -1,0 +1,120 @@
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c               Read spline data from a file                  c
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c   Subroutines to read R,V(R) data for spline function       c 
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function readSpVlr1()   
+   integer :: i, info
+
+   readSpVlr1 = .false.
+
+   open(99, file=fSpVRlr1, status='old')
+   read(99,*) spNum(1)
+
+   allocate(splr1(spnum(1)),spvlr1(spNum(1)),spMlr1(spNum(1)),stat=info)
+   if (info /= 0) then
+       close(99); return
+   end if
+
+   do i = 1, spNum(1)
+         read(99,*) splr1(i), spvlr1(i)
+   end do
+   close(99)   
+
+   call spline(spNum(1),splr1,spVlr1,spyp1(1),spyp2(1),spMlr1)
+   readSpVlr1 = .true.
+
+end function
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function readSpVlr2()
+   integer :: i, info
+
+   readSpVlr2 = .false.
+   open(99, file=fSpVRlr2, status='old')
+   read(99,*) spNum(2)
+
+   allocate(splr2(spnum(2)),spvlr2(spNum(2)),spMlr2(spNum(2)),stat=info)
+   if (info /= 0) then
+       close(99); return
+   end if
+
+   do i = 1, spNum(2)
+         read(99,*) splr2(i), spvlr2(i)
+   end do
+   close(99)
+
+   call spline(spNum(2),splr2,spVlr2,spyp1(2),spyp2(2),spMlr2)
+   readSpVlr2 = .TRUE.
+
+end function 
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+logical function readSpVBr()
+   integer :: i, info
+
+   readSpVBr = .false.
+
+   open(99, file=fSpVRBR, status='old')
+   read(99,*) spNum(3)
+
+   allocate(spBR(spnum(3)),spvBR(spNum(3)),spMBR(spNum(3)),stat=info)
+   if (info /= 0) then
+       close(99); return
+   end if
+
+   do i = 1, spNum(3)
+         read(99,*) spBR(i), spvBR(i)
+   end do
+   close(99)
+
+   call spline(spNum(3),spBR,spVBR,spyp1(3),spyp2(3),spMBR)
+   readSpVBr = .true.
+
+end function
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!c         use spline to calculate pes for BR, lr, gm           c
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   subroutine calVlr1(N, lr0, PES0)   
+      integer, intent(IN) :: N
+      double precision,intent(IN)  :: lr0(N)
+      double precision,intent(OUT) :: pes0(N)
+
+      call splint(spNum(1), splr1, spvlr1, spMlr1, N, lr0, pes0)
+      
+   end subroutine
+!****************************************************************
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   subroutine calVlr2(N, lr0, PES0)   
+      integer, intent(IN) :: N
+      double precision,intent(IN)  :: lr0(N)
+      double precision,intent(OUT) :: pes0(N)
+
+      call splint(spNum(2), splr2, spvlr2, spMlr2, N, lr0, pes0)
+      
+   end subroutine
+!****************************************************************
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   subroutine calVBR(N, BR0, PES0)  
+      integer, intent(IN) :: N
+      double precision,intent(IN)  :: BR0(N)
+      double precision,intent(OUT) :: pes0(N)     
+
+      call splint(spNum(3), spBR, spVbr, spMbr, N, BR0, pes0)      
+
+   end subroutine
+!***************************************************************
+
