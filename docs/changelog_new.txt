@@ -1,0 +1,82 @@
+=======================================================================================
+ScalIT code changes
+04-01-2019
+
+Performed by Janos Sarka
+
+---------------------------------------------------------------------------------------
+Changes in output printing:
+
+- time printing info for 2nd step included in:
+ - src/ham/ja4/module/pja4.hgm
+
+ - src/ham/ja4/module/mja4.hre (newly created)
+    calVmat times for truncation
+
+- time printing info for 3rd step included in:
+ - file loading
+    src/iterate/module/mosb.io.h
+
+ - HOSB
+    src/iterate/libiterate_mpi/diagmpi/hosbdiag_mpi.f90
+    src/iterate/libiterate_mpi/diagseq/hosbdiag_seq.f90
+
+ - QMR
+    src/iterate/libiterate_mpi/qmr/qmr_mpi.f90
+
+ - PIST
+    src/iterate/libiterate_mpi/pist/pist_mpi.f90
+
+- printing temporary eigenvalues included in:
+   src/iterate/libiterate_mpi/pist/pist_mpi.f90
+   src/iterate/libiterate_mpi/pist/pistf_mpi.f90
+
+- printing final eigenvalues in a column format added to:
+   src/iterate/module/mosbp.progEig.h
+
+---------------------------------------------------------------------------------------
+I/O algorithm reform
+
+ Storage format of the h0gm matrix between the 2nd and 3rd step changed for p routines.
+ Now p and m file format is not compatible (p is used mostly).
+
+ - new I/O created (P2SaveDataGrid, P2LoadDataGrid)
+    src/libutil/parallel/p_io/p2io_grid.f90
+ 
+ - new loadGrid created for parallel use (uses P2LoadDataGrid)
+    src/iterate/module/posb.io2b.h
+
+
+ - new 2nd step p modules created (pja40.hgm and pja30.hgm, using P2SaveDataGrid)
+    src/ham/ja4/module/pja40.hgm
+    src/ham/ja3/module/pja30.hgm
+
+ - the new pja40.hgm and pja30.hgm is activated
+    src/ham/ja4/module/pja4.f90
+    src/ham/ja3/module/pja3.f90
+
+
+ - p2_iterate
+    new executeable p2_iterate created for 3rd step to be used with new p 2nd step routines.
+    (old p_iterate still kept for now)
+
+
+---------------------------------------------------------------------------------------
+SHIFTINT change
+
+ Too large value caused error in the HOSB of 3rd step
+ for larger matrixes using the four atomic code
+
+ - src/iterate/libiterate_mpi/util/sendindex.f90
+ - src/iterate/libiterate_mpi/util/recvindex.f90
+   SHIFTINT changed from 2**12 to 2**9
+
+---------------------------------------------------------------------------------------
+Makefile change
+
+ Makefile changed according to other Makefiles
+ in order to not recompile everytime make is executed
+
+ - src/wave/wave3/Makefile
+
+=======================================================================================
